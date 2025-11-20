@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Foropter Scanner Tool</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="app-container">
+        <header class="app-header">
+            <h1>Foropter Scanner Tool</h1>
+            <div class="header-controls">
+                <button id="clearLogs" class="btn btn-secondary">Clear Logs</button>
+                <button id="exportLogs" class="btn btn-primary">Export Logs</button>
+                <label class="toggle-label">
+                    <input type="checkbox" id="autoScroll" checked>
+                    Auto-scroll logs
+                </label>
+            </div>
+        </header>
+
+        <main class="main-content">
+            <!-- Foropter Interface Panel -->
+            <section class="foropter-panel">
+                <h2>Foropter Interface</h2>
+
+                <!-- Eye Selection -->
+                <div class="control-group" data-annotation="Eye Selection">
+                    <label>Eye</label>
+                    <div class="btn-group">
+                        <button class="eye-btn active" data-eye="OD">OD (Right)</button>
+                        <button class="eye-btn" data-eye="OS">OS (Left)</button>
+                        <button class="eye-btn" data-eye="OU">OU (Both)</button>
+                    </div>
+                </div>
+
+                <!-- Sphere Control -->
+                <div class="control-group" data-annotation="Sphere Power (SPH)">
+                    <label>Sphere (SPH)</label>
+                    <div class="dial-control">
+                        <button class="dial-btn" data-action="decrease" data-target="sphere">−</button>
+                        <input type="number" id="sphere" value="0.00" step="0.25" min="-20" max="20">
+                        <button class="dial-btn" data-action="increase" data-target="sphere">+</button>
+                        <span class="unit">D</span>
+                    </div>
+                </div>
+
+                <!-- Cylinder Control -->
+                <div class="control-group" data-annotation="Cylinder Power (CYL)">
+                    <label>Cylinder (CYL)</label>
+                    <div class="dial-control">
+                        <button class="dial-btn" data-action="decrease" data-target="cylinder">−</button>
+                        <input type="number" id="cylinder" value="0.00" step="0.25" min="-10" max="10">
+                        <button class="dial-btn" data-action="increase" data-target="cylinder">+</button>
+                        <span class="unit">D</span>
+                    </div>
+                </div>
+
+                <!-- Axis Control -->
+                <div class="control-group" data-annotation="Axis Angle">
+                    <label>Axis</label>
+                    <div class="dial-control">
+                        <button class="dial-btn" data-action="decrease" data-target="axis">−</button>
+                        <input type="number" id="axis" value="0" step="1" min="0" max="180">
+                        <button class="dial-btn" data-action="increase" data-target="axis">+</button>
+                        <span class="unit">°</span>
+                    </div>
+                </div>
+
+                <!-- Add Power Control -->
+                <div class="control-group" data-annotation="Add Power for Near Vision">
+                    <label>Add Power</label>
+                    <div class="dial-control">
+                        <button class="dial-btn" data-action="decrease" data-target="add">−</button>
+                        <input type="number" id="add" value="0.00" step="0.25" min="0" max="4">
+                        <button class="dial-btn" data-action="increase" data-target="add">+</button>
+                        <span class="unit">D</span>
+                    </div>
+                </div>
+
+                <!-- Pupillary Distance -->
+                <div class="control-group" data-annotation="Pupillary Distance (PD)">
+                    <label>PD</label>
+                    <div class="dial-control">
+                        <button class="dial-btn" data-action="decrease" data-target="pd">−</button>
+                        <input type="number" id="pd" value="63" step="0.5" min="50" max="80">
+                        <button class="dial-btn" data-action="increase" data-target="pd">+</button>
+                        <span class="unit">mm</span>
+                    </div>
+                </div>
+
+                <!-- Test Selection -->
+                <div class="control-group" data-annotation="Visual Acuity Test Selection">
+                    <label>Test Type</label>
+                    <select id="testType">
+                        <option value="snellen">Snellen Chart</option>
+                        <option value="logmar">LogMAR</option>
+                        <option value="duochrome">Duochrome</option>
+                        <option value="astigmatism">Astigmatism Dial</option>
+                        <option value="cross-cylinder">Cross Cylinder</option>
+                        <option value="binocular">Binocular Balance</option>
+                    </select>
+                </div>
+
+                <!-- Lens Options -->
+                <div class="control-group" data-annotation="Auxiliary Lens Options">
+                    <label>Auxiliary Lens</label>
+                    <div class="checkbox-group">
+                        <label><input type="checkbox" id="redFilter" data-lens="red"> Red Filter</label>
+                        <label><input type="checkbox" id="greenFilter" data-lens="green"> Green Filter</label>
+                        <label><input type="checkbox" id="polarized" data-lens="polarized"> Polarized</label>
+                        <label><input type="checkbox" id="occluder" data-lens="occluder"> Occluder</label>
+                        <label><input type="checkbox" id="pinhole" data-lens="pinhole"> Pinhole</label>
+                    </div>
+                </div>
+
+                <!-- Action Buttons -->
+                <div class="control-group" data-annotation="Measurement Actions">
+                    <div class="action-buttons">
+                        <button id="resetValues" class="btn btn-warning">Reset Values</button>
+                        <button id="captureReading" class="btn btn-success">Capture Reading</button>
+                        <button id="switchScreen" class="btn btn-info">Next Screen</button>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Right Side Panels -->
+            <div class="right-panels">
+                <!-- Annotations Panel -->
+                <section class="annotations-panel">
+                    <h2>Annotations</h2>
+                    <div id="annotationsList" class="annotations-list">
+                        <!-- Populated dynamically -->
+                    </div>
+                </section>
+
+                <!-- Log Panel -->
+                <section class="log-panel">
+                    <h2>Event Log <span id="logCount" class="log-count">0</span></h2>
+                    <div id="logContainer" class="log-container">
+                        <!-- Logs populated dynamically -->
+                    </div>
+                </section>
+
+                <!-- Screen State Panel -->
+                <section class="state-panel">
+                    <h2>Current Screen State</h2>
+                    <pre id="screenState" class="screen-state"></pre>
+                </section>
+            </div>
+        </main>
+
+        <footer class="app-footer">
+            <div class="status-bar">
+                <span id="statusMessage">Ready</span>
+                <span id="screenCounter">Screen: 1</span>
+                <span id="timestamp"></span>
+            </div>
+        </footer>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>
