@@ -131,25 +131,43 @@
                 </div>
 
                 <div class="intake-card">
-                    <h2>Connection Settings</h2>
+                    <h2>Phoropter Connection</h2>
                     <div class="form-grid">
                         <div class="form-group">
-                            <label for="cv5000Url">CV-5000 API URL</label>
-                            <input type="text" id="cv5000Url" placeholder="http://localhost:8080" value="">
+                            <label for="cv5000Url">Broker API URL</label>
+                            <input type="text" id="cv5000Url" value="https://rajasthan-royals.preprod.lenskart.com">
                         </div>
                         <div class="form-group">
-                            <label for="phoroptertId">Phoropter ID</label>
-                            <input type="text" id="phoroptertId" value="phoropter-1">
+                            <label for="brainId">Brain ID</label>
+                            <input type="text" id="brainId" placeholder="brain_01">
+                        </div>
+                    </div>
+                    <div class="device-selector">
+                        <div class="device-selector-header">
+                            <label>Select Phoropter Device</label>
+                            <button id="loadDevicesBtn" class="btn btn-sm btn-secondary">Load Devices</button>
+                        </div>
+                        <div id="deviceList" class="device-list">
+                            <span class="device-placeholder">Click "Load Devices" to fetch available phoropters, or enter ID manually</span>
+                        </div>
+                        <div class="form-group" style="margin-top:0.5rem">
+                            <label for="phoroptertId">Phoropter ID (manual)</label>
+                            <input type="text" id="phoroptertId" placeholder="e.g. lkst1782-1" value="">
                         </div>
                     </div>
                     <label class="checkbox-label">
                         <input type="checkbox" id="simulatedMode" checked>
-                        Simulated Mode (no CV-5000 connection required)
+                        Simulated Mode (no phoropter connection required)
                     </label>
                     <label class="checkbox-label">
                         <input type="checkbox" id="voiceEnabled" checked>
                         Enable Voice I/O (TTS + Speech Recognition)
                     </label>
+                    <div class="dashboard-link">
+                        <a href="https://rajasthan-royals.preprod.lenskart.com/dashboard" target="_blank" rel="noopener">
+                            Open Phoropter Dashboard
+                        </a>
+                    </div>
                 </div>
 
                 <button id="startExamBtn" class="btn btn-primary btn-large">Start Eye Examination</button>

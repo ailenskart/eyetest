@@ -36,6 +36,13 @@ class EyeTestApp {
             this._updateTimestamp();
             setInterval(() => this._updateTimestamp(), 1000);
         });
+
+        // Release device on page unload
+        window.addEventListener('beforeunload', () => {
+            if (this.cv5000 && this.cv5000.connectionStatus === 'acquired') {
+                this.cv5000.destroy();
+            }
+        });
     }
 
     // ════════════════════════════════════════════
@@ -46,6 +53,49 @@ class EyeTestApp {
         document.getElementById('hasOldRx').addEventListener('change', (e) => {
             document.getElementById('oldRxFields').classList.toggle('hidden', !e.target.checked);
         });
+        document.getElementById('loadDevicesBtn').addEventListener('click', () => this._loadDevices());
+        document.getElementById('simulatedMode').addEventListener('change', (e) => {
+            // When unchecked, auto-load devices
+            if (!e.target.checked) this._loadDevices();
+        });
+    }
+
+    async _loadDevices() {
+        const baseUrl = document.getElementById('cv5000Url').value;
+        const listEl = document.getElementById('deviceList');
+        listEl.innerHTML = '<span class="device-placeholder">Loading...</span>';
+
+        const tempProto = new CV5000Protocol({ baseUrl, simulatedMode: false });
+        try {
+            const devices = await tempProto.listDevices(true);
+            if (!devices || !devices.length) {
+                listEl.innerHTML = '<span class="device-placeholder">No devices found</span>';
+                return;
+            }
+
+            listEl.innerHTML = '';
+            const arr = Array.isArray(devices) ? devices : (devices.devices || []);
+            arr.forEach(d => {
+                const id = d.id || d.device_id || d.phoropter_id || '';
+                const status = (d.status || 'UNKNOWN').toUpperCase();
+                const statusClass = status === 'AVAILABLE' ? 'available' : status === 'CONNECTED' ? 'connected' : 'offline';
+
+                const item = document.createElement('div');
+                item.className = 'device-item';
+                item.innerHTML = `
+                    <span class="device-id">${id}</span>
+                    <span class="device-status ${statusClass}">${status}</span>
+                `;
+                item.addEventListener('click', () => {
+                    document.querySelectorAll('.device-item').forEach(el => el.classList.remove('selected'));
+                    item.classList.add('selected');
+                    document.getElementById('phoroptertId').value = id;
+                });
+                listEl.appendChild(item);
+            });
+        } catch (err) {
+            listEl.innerHTML = `<span class="device-placeholder">Error: ${err.message}</span>`;
+        }
     }
 
     _collectPatientData() {
@@ -74,12 +124,31 @@ class EyeTestApp {
         const simulated = document.getElementById('simulatedMode').checked;
         this.voiceEnabled = document.getElementById('voiceEnabled').checked;
 
+        const phoroptertId = document.getElementById('phoroptertId').value.trim();
+        const brainId = document.getElementById('brainId').value.trim() || `brain_${Date.now()}`;
+
+        if (!simulated && !phoroptertId) {
+            alert('Please select a phoropter device or enable Simulated Mode.');
+            return;
+        }
+
         // ── Initialize modules ──
         this.cv5000 = new CV5000Protocol({
-            baseUrl: document.getElementById('cv5000Url').value,
-            phoroptertId: document.getElementById('phoroptertId').value,
+            baseUrl: document.getElementById('cv5000Url').value.trim(),
+            phoroptertId,
+            brainId,
+            brainName: 'AI Eye Test',
+            simulatedMode: simulated,
         });
-        this.cv5000.simulatedMode = simulated;
+
+        // ── Acquire device if not simulated ──
+        if (!simulated) {
+            const result = await this.cv5000.acquireDevice(phoroptertId);
+            if (result.status === 'FAILED' || result.reason === 'DEVICE_ALREADY_CONNECTED') {
+                alert(`Cannot acquire device: ${result.reason || 'Unknown error'}.\nConnected brain: ${result.connected_brain || 'unknown'}`);
+                return;
+            }
+        }
 
         this.engine = new RefractionEngine(this.cv5000);
         this.engine.setPatientData(patientData);
@@ -313,7 +382,7 @@ class EyeTestApp {
             badge.textContent = 'Simulated';
             badge.className = 'badge badge-warning';
         } else {
-            badge.textContent = 'Connected';
+            badge.textContent = `Connected: ${this.cv5000.phoroptertId}`;
             badge.className = 'badge badge-success';
         }
     }
@@ -519,6 +588,12 @@ class EyeTestApp {
     _onExamComplete(rx) {
         this._clearAutoFlip();
         this._log('system', 'Examination complete');
+
+        // Release device
+        if (this.cv5000 && this.cv5000.connectionStatus === 'acquired') {
+            this.cv5000.releaseDevice();
+            this._log('system', 'Device released');
+        }
 
         if (rx) {
             this._showResults(rx);
