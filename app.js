@@ -230,6 +230,12 @@ class EyeTestApp {
         // Flags
         this._updateFlags(response.progress?.flags);
 
+        // Rationale
+        this._updateRationale(response.rationale);
+
+        // AR Reference
+        this._updateARReference(response.arReference);
+
         // Handle exam complete
         if (response.phaseId === 'complete' || response.status === 'complete') {
             this._onExamComplete(response.prescription);
@@ -444,6 +450,34 @@ class EyeTestApp {
             });
         } else {
             selector.classList.add('hidden');
+        }
+    }
+
+    _updateRationale(rationale) {
+        const area = document.getElementById('rationaleArea');
+        if (!rationale || (!rationale.why && !rationale.clinical)) {
+            area.classList.add('hidden');
+            return;
+        }
+
+        area.classList.remove('hidden');
+        document.getElementById('rationalePhase').textContent = rationale.phase || '';
+        document.getElementById('rationaleWhy').textContent = rationale.why || '';
+        document.getElementById('rationaleClinical').textContent = rationale.clinical || '';
+    }
+
+    _updateARReference(arRef) {
+        const card = document.getElementById('arReferenceCard');
+        if (!arRef) return;
+
+        const fmt = (v) => `${v >= 0 ? '+' : ''}${v.toFixed(2)}`;
+        const fmtEye = (e) => `${fmt(e.sph)} / ${fmt(e.cyl)} x ${e.axis}\u00B0`;
+
+        const hasData = arRef.OD.sph !== 0 || arRef.OD.cyl !== 0 || arRef.OS.sph !== 0 || arRef.OS.cyl !== 0;
+        if (hasData) {
+            card.classList.remove('hidden');
+            document.getElementById('arRefOD').textContent = fmtEye(arRef.OD);
+            document.getElementById('arRefOS').textContent = fmtEye(arRef.OS);
         }
     }
 

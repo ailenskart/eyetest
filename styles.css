@@ -614,6 +614,48 @@ body {
     border-bottom: none;
 }
 
+/* AR Reference */
+.ar-reference-card {
+    background: var(--bg-card);
+    border: 1px solid var(--accent-purple);
+    border-radius: var(--radius);
+    padding: 0.5rem 0.625rem;
+}
+
+.ar-reference-card h4 {
+    font-size: 0.6875rem;
+    color: var(--accent-purple);
+    margin-bottom: 0.375rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+}
+
+.ar-ref-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.125rem 0;
+    font-size: 0.75rem;
+}
+
+.ar-ref-row + .ar-ref-row {
+    border-top: 1px solid var(--border-color);
+    padding-top: 0.25rem;
+}
+
+.ar-ref-label {
+    color: var(--text-muted);
+    font-weight: 500;
+}
+
+.ar-ref-value {
+    color: var(--accent-purple);
+    font-family: 'SF Mono', 'Fira Code', monospace;
+    font-size: 0.6875rem;
+    font-weight: 600;
+}
+
 /* ── Conversation Panel (center) ── */
 .conversation-panel {
     display: flex;
@@ -710,6 +752,52 @@ body {
     background: var(--accent-amber);
     width: 0%;
     transition: width 2s linear;
+}
+
+/* Clinical Rationale */
+.rationale-area {
+    background: var(--bg-card);
+    border-top: 1px solid var(--border-color);
+    border-left: 3px solid var(--accent-green);
+    padding: 0.5rem 0.75rem;
+}
+
+.rationale-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 0.375rem;
+}
+
+.rationale-title {
+    font-size: 0.6875rem;
+    font-weight: 600;
+    color: var(--accent-green);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.rationale-phase {
+    font-size: 0.625rem;
+    color: var(--accent-cyan);
+    font-weight: 500;
+    background: var(--bg-input);
+    padding: 0.125rem 0.5rem;
+    border-radius: 8px;
+}
+
+.rationale-why {
+    font-size: 0.75rem;
+    color: var(--text-primary);
+    line-height: 1.4;
+    margin-bottom: 0.25rem;
+}
+
+.rationale-clinical {
+    font-size: 0.6875rem;
+    color: var(--text-secondary);
+    line-height: 1.4;
+    font-style: italic;
 }
 
 /* Question area */

@@ -261,6 +261,19 @@
                         </div>
                     </div>
 
+                    <!-- AR Reference (baseline comparison) -->
+                    <div id="arReferenceCard" class="ar-reference-card hidden">
+                        <h4>AR Reference (Baseline)</h4>
+                        <div class="ar-ref-row">
+                            <span class="ar-ref-label">OD:</span>
+                            <span id="arRefOD" class="ar-ref-value">--</span>
+                        </div>
+                        <div class="ar-ref-row">
+                            <span class="ar-ref-label">OS:</span>
+                            <span id="arRefOS" class="ar-ref-value">--</span>
+                        </div>
+                    </div>
+
                     <!-- Chart selector (only visible in refraction phases) -->
                     <div id="chartSelector" class="chart-selector hidden">
                         <h4>Switch Chart</h4>
@@ -289,6 +302,16 @@
                             <div id="flipProgressBar" class="flip-progress-bar"></div>
                         </div>
                         <span>Auto-flipping in <span id="flipCountdown">2</span>s...</span>
+                    </div>
+
+                    <!-- Clinical Rationale -->
+                    <div id="rationaleArea" class="rationale-area hidden">
+                        <div class="rationale-header">
+                            <span class="rationale-title">Clinical Rationale</span>
+                            <span id="rationalePhase" class="rationale-phase"></span>
+                        </div>
+                        <div id="rationaleWhy" class="rationale-why"></div>
+                        <div id="rationaleClinical" class="rationale-clinical"></div>
                     </div>
 
                     <!-- Current question -->

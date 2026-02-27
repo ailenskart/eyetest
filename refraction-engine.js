@@ -1,19 +1,21 @@
 /**
- * Subjective Refraction Engine — 10-Phase State Machine
+ * Subjective Refraction Engine — 12-Phase State Machine
  *
  * Ported from reference: eye_test_engine/interactive_session.py
  * Implements the complete clinical subjective refraction protocol:
  *
- *   Phase A: Distance Vision (BINO + E-chart)
- *   Phase B: Right Eye Refraction (Left_Occluded + Snellen)
- *   Phase E: JCC Axis Right (jcc_chart + Flip1/Flip2)
- *   Phase F: JCC Power Right (jcc_chart + Flip1/Flip2)
- *   Phase G: Duochrome Right (duochrome chart)
- *   Phase D: Left Eye Refraction (Right_Occluded + Snellen)
- *   Phase H: JCC Axis Left (jcc_chart + Flip1/Flip2)
- *   Phase I: JCC Power Left (jcc_chart + Flip1/Flip2)
- *   Phase J: Duochrome Left (duochrome chart)
- *   Phase K: Binocular Balance (BINO + bino_chart)
+ *   Phase A:  Distance Vision (BINO + E-chart)
+ *   Phase A2: Fogging Right Eye (+2.00D fog to relax accommodation)
+ *   Phase B:  Right Eye Refraction / De-fog (Left_Occluded + Snellen)
+ *   Phase E:  JCC Axis Right (jcc_chart + Flip1/Flip2)
+ *   Phase F:  JCC Power Right (jcc_chart + Flip1/Flip2)
+ *   Phase G:  Duochrome Right (duochrome chart)
+ *   Phase C2: Fogging Left Eye (+2.00D fog to relax accommodation)
+ *   Phase D:  Left Eye Refraction / De-fog (Right_Occluded + Snellen)
+ *   Phase H:  JCC Axis Left (jcc_chart + Flip1/Flip2)
+ *   Phase I:  JCC Power Left (jcc_chart + Flip1/Flip2)
+ *   Phase J:  Duochrome Left (duochrome chart)
+ *   Phase K:  Binocular Balance (BINO + bino_chart)
  *
  * Rules (from reference docs):
  *   - SPH: -0.25D steps | CYL: ±0.25D | AXIS: ±5° (±10° for MUCH better)
@@ -34,11 +36,13 @@ class RefractionEngine {
         // ── Phase definitions (matching reference) ──
         this.phaseNames = {
             'distance_vision':       'Phase A: Distance Vision (Step 2.1)',
-            'right_eye_refraction':  'Phase B: Right Eye Refraction (Step 6.1)',
+            'fogging_right':         'Phase A2: Fogging Right Eye (Step 3.1)',
+            'right_eye_refraction':  'Phase B: Right Eye Refraction / De-fog (Step 6.1)',
             'jcc_axis_right':        'Phase E: JCC Axis Right (Step 6.2)',
             'jcc_power_right':       'Phase F: JCC Power Right (Step 6.2)',
             'duochrome_right':       'Phase G: Duochrome Right (Step 6.2)',
-            'left_eye_refraction':   'Phase D: Left Eye Refraction (Step 6.3)',
+            'fogging_left':          'Phase C2: Fogging Left Eye (Step 3.2)',
+            'left_eye_refraction':   'Phase D: Left Eye Refraction / De-fog (Step 6.3)',
             'jcc_axis_left':         'Phase H: JCC Axis Left (Step 6.4)',
             'jcc_power_left':        'Phase I: JCC Power Left (Step 6.4)',
             'duochrome_left':        'Phase J: Duochrome Left (Step 6.4)',
@@ -47,10 +51,12 @@ class RefractionEngine {
 
         this.phaseOrder = [
             'distance_vision',
+            'fogging_right',
             'right_eye_refraction',
             'jcc_axis_right',
             'jcc_power_right',
             'duochrome_right',
+            'fogging_left',
             'left_eye_refraction',
             'jcc_axis_left',
             'jcc_power_left',
@@ -94,6 +100,9 @@ class RefractionEngine {
         this.examStarted = false;
         this.examComplete = false;
         this.rowCounter = 0;
+
+        // ── Fogging ──
+        this.fogAmount = 2.0; // +2.00D standard clinical fog
     }
 
     // ─── Event System ──────────────────────────────
@@ -167,6 +176,8 @@ class RefractionEngine {
             chart: this.currentRow.chart_display,
             chartVA: this.cv5000.getChartVA(this.currentRow.chart_display),
             progress: this.getProgress(),
+            rationale: this._getRationale(),
+            arReference: this.patientData.autorefraction,
         };
 
         // Add chart_info for phases with chart selection
@@ -203,6 +214,10 @@ class RefractionEngine {
                 return this.jccFlipState === 'flip1'
                     ? 'Focus on the dot chart. This is Flip 1. (Flip 2 will show automatically in 2 seconds)'
                     : 'Now this is Flip 2. Which was better?';
+            case 'fogging_right':
+                return "I've added extra plus power to intentionally blur your right eye. Can you confirm everything looks blurry?";
+            case 'fogging_left':
+                return "I've added extra plus power to intentionally blur your left eye. Can you confirm everything looks blurry?";
             case 'duochrome_right': case 'duochrome_left':
                 return 'Which is clearer: the letters on the red side or the green side, or are they the same?';
             case 'binocular_balance':
@@ -219,6 +234,10 @@ class RefractionEngine {
         switch (phase) {
             case 'distance_vision':
                 intents = ['Able to read', 'Blurry', 'Unable to read'];
+                break;
+            case 'fogging_right':
+            case 'fogging_left':
+                intents = ["Yes, it's blurry", 'No, I can still see clearly'];
                 break;
             case 'right_eye_refraction':
             case 'left_eye_refraction':
@@ -269,6 +288,175 @@ class RefractionEngine {
         return intents;
     }
 
+    // ─── Phase Rationale (clinical reasoning for current step) ──
+    _getRationale() {
+        const fmt = (v) => `${v >= 0 ? '+' : ''}${v.toFixed(2)}`;
+        const fmtEye = (e) => `${fmt(e.sph)}/${fmt(e.cyl)}x${e.axis}`;
+        const ar = this.patientData.autorefraction;
+        const p = this.getPower();
+
+        switch (this.currentPhase) {
+            case 'distance_vision':
+                return {
+                    phase: 'Baseline Distance Vision',
+                    why: `AR loaded into phoropter: OD ${fmtEye(ar.OD)}, OS ${fmtEye(ar.OS)}. Checking if patient can see the largest chart with AR as starting correction.`,
+                    clinical: 'The auto-refractometer (AR) gives an objective measurement of refractive error. We use it as a starting point and refine subjectively. Binocular check first to verify AR gives functional distance vision.',
+                };
+            case 'fogging_right':
+                return {
+                    phase: 'Fogging — Right Eye',
+                    why: `Right eye fogged: AR SPH ${fmt(ar.OD.sph)} + ${fmt(this.fogAmount)} fog = ${fmt(p.right.sph)}. Left eye occluded.`,
+                    clinical: 'Fogging adds excess plus power to intentionally blur vision. This relaxes the ciliary muscle (accommodation), preventing over-minusing. Without fogging, the eye may accommodate (focus harder), making us prescribe too much minus.',
+                };
+            case 'right_eye_refraction':
+                return {
+                    phase: 'De-fogging / Monocular Refraction — Right Eye',
+                    why: `Reducing SPH in -0.25D steps from fogged value. Current: OD SPH ${fmt(p.right.sph)} (AR was ${fmt(ar.OD.sph)}).`,
+                    clinical: 'Each -0.25D step sharpens the retinal image. "Able to read" means this line is resolved — advance to smaller letters. "Unable to read" twice consecutively — move to astigmatism refinement (JCC).',
+                };
+            case 'jcc_axis_right':
+                return {
+                    phase: 'JCC Axis Refinement — Right Eye',
+                    why: `Refining cylinder axis. Current: OD CYL ${fmt(p.right.cyl)} x ${p.right.axis}\u00B0 (AR was ${fmt(ar.OD.cyl)} x ${ar.OD.axis}\u00B0).`,
+                    clinical: 'The JCC flips two cross-cylinder lens orientations (Flip 1 vs Flip 2). The clearer flip tells us which direction to rotate the astigmatism axis. Converges when both flips look the same.',
+                };
+            case 'jcc_power_right':
+                return {
+                    phase: 'JCC Power Refinement — Right Eye',
+                    why: `Refining cylinder power. Current: OD CYL ${fmt(p.right.cyl)} (AR was ${fmt(ar.OD.cyl)}).`,
+                    clinical: 'Same JCC flip comparison, now adjusting the amount of cylinder correction (\u00B10.25D steps). SPH is compensated when CYL crosses 0.50D boundaries to maintain spherical equivalent.',
+                };
+            case 'duochrome_right':
+                return {
+                    phase: 'Duochrome (Red/Green) — Right Eye',
+                    why: `Verifying spherical endpoint. Current: OD SPH ${fmt(p.right.sph)} (AR was ${fmt(ar.OD.sph)}).`,
+                    clinical: 'Red and green light focus at slightly different retinal points. Red clearer = under-corrected (RAM: Red Add Minus). Green clearer = over-corrected (GAP: Green Add Plus). Equal = optimal.',
+                };
+            case 'fogging_left':
+                return {
+                    phase: 'Fogging — Left Eye',
+                    why: `Left eye fogged: AR SPH ${fmt(ar.OS.sph)} + ${fmt(this.fogAmount)} fog = ${fmt(p.left.sph)}. Right eye occluded.`,
+                    clinical: 'Same fogging principle for the left eye. Relaxing accommodation before monocular refraction to prevent over-minusing.',
+                };
+            case 'left_eye_refraction':
+                return {
+                    phase: 'De-fogging / Monocular Refraction — Left Eye',
+                    why: `Reducing SPH in -0.25D steps from fogged value. Current: OS SPH ${fmt(p.left.sph)} (AR was ${fmt(ar.OS.sph)}).`,
+                    clinical: 'Same de-fogging process as right eye. Each -0.25D step tests if the image sharpens enough to read the next line.',
+                };
+            case 'jcc_axis_left':
+                return {
+                    phase: 'JCC Axis Refinement — Left Eye',
+                    why: `Refining cylinder axis. Current: OS CYL ${fmt(p.left.cyl)} x ${p.left.axis}\u00B0 (AR was ${fmt(ar.OS.cyl)} x ${ar.OS.axis}\u00B0).`,
+                    clinical: 'Cross-cylinder axis test for the left eye. Same flip comparison to converge on the correct astigmatism axis.',
+                };
+            case 'jcc_power_left':
+                return {
+                    phase: 'JCC Power Refinement — Left Eye',
+                    why: `Refining cylinder power. Current: OS CYL ${fmt(p.left.cyl)} (AR was ${fmt(ar.OS.cyl)}).`,
+                    clinical: 'Cross-cylinder power test for the left eye. Adjusting cylinder in \u00B10.25D steps.',
+                };
+            case 'duochrome_left':
+                return {
+                    phase: 'Duochrome (Red/Green) — Left Eye',
+                    why: `Verifying spherical endpoint. Current: OS SPH ${fmt(p.left.sph)} (AR was ${fmt(ar.OS.sph)}).`,
+                    clinical: 'Duochrome test for left eye. Red clearer = add minus, Green clearer = add plus, Equal = done.',
+                };
+            case 'binocular_balance':
+                return {
+                    phase: 'Binocular Balance',
+                    why: `Equalizing both eyes. Current: OD SPH ${fmt(p.right.sph)}, OS SPH ${fmt(p.left.sph)}.`,
+                    clinical: 'Both eyes view separate lines through prism dissociation. If one line is blurrier, that eye gets +0.25D to equalize. Goal: both eyes equally sharp for comfortable binocular vision.',
+                };
+            default:
+                return { phase: this.currentPhase, why: '', clinical: '' };
+        }
+    }
+
+    // ─── Action Rationale (why this specific action was taken) ──
+    _getActionRationale(intent) {
+        const fmt = (v) => `${v >= 0 ? '+' : ''}${v.toFixed(2)}`;
+        const ar = this.patientData.autorefraction;
+        const p = this.getPower();
+
+        switch (this.currentPhase) {
+            case 'distance_vision':
+                if (intent === 'Able to read') return `Patient can see 20/400 E with AR correction (OD ${fmt(ar.OD.sph)}, OS ${fmt(ar.OS.sph)}). Baseline vision confirmed. Proceeding to fogging.`;
+                if (intent === 'Blurry') return 'E is blurry but detectable with AR. Proceeding to fogging.';
+                if (intent === 'Unable to read') return 'Cannot read E with AR correction — activating pinhole to rule out pathology vs refractive error.';
+                if (intent.includes('pinhole')) return intent.includes('Still')
+                    ? 'Pinhole did not help — flagging possible pathology for optometrist review.'
+                    : 'Pinhole improved vision — confirms refractive (optical) issue, not pathology.';
+                break;
+
+            case 'fogging_right':
+                if (intent.includes('blurry')) return `Fog confirmed at OD SPH ${fmt(p.right.sph)} (AR ${fmt(ar.OD.sph)} + ${fmt(this.fogAmount)} fog). Accommodation relaxed. Starting de-fog in -0.25D steps.`;
+                if (intent.includes('see clearly')) return `Patient sees through fog — accommodation still active. Adding +0.50D more fog to fully relax.`;
+                break;
+
+            case 'fogging_left':
+                if (intent.includes('blurry')) return `Fog confirmed at OS SPH ${fmt(p.left.sph)} (AR ${fmt(ar.OS.sph)} + ${fmt(this.fogAmount)} fog). Accommodation relaxed. Starting de-fog.`;
+                if (intent.includes('see clearly')) return `Patient sees through fog — adding +0.50D more fog.`;
+                break;
+
+            case 'right_eye_refraction':
+            case 'left_eye_refraction': {
+                const eye = this.currentPhase.includes('right') ? 'right' : 'left';
+                const sph = eye === 'right' ? p.right.sph : p.left.sph;
+                const arSph = eye === 'right' ? ar.OD.sph : ar.OS.sph;
+                if (intent === 'Able to read') return `Patient reads this line at SPH ${fmt(sph)}. Advancing to smaller chart.`;
+                if (intent === 'Blurry') return `Blurry at SPH ${fmt(sph)} — adding -0.25D (will become ${fmt(sph - 0.25)}). De-fogging toward optimal.`;
+                if (intent === 'Unable to read') return `Cannot read at SPH ${fmt(sph)} — adding -0.25D. ${this.unableReadCount >= 1 ? 'Second consecutive failure — will transition to JCC astigmatism test.' : 'Continuing de-fog.'}`;
+                if (intent === 'Prev State') return 'Reverting to previous power setting (operator undo).';
+                break;
+            }
+
+            case 'jcc_axis_right': case 'jcc_axis_left': {
+                const eye = this.currentPhase.includes('right') ? 'right' : 'left';
+                const axis = eye === 'right' ? p.right.axis : p.left.axis;
+                if (intent === 'AUTO_FLIP') return 'Auto-flipping from Flip 1 to Flip 2 for comparison.';
+                if (intent.includes('Both Same')) return `Axis locked at ${axis}\u00B0 — no difference between flips. Moving to cylinder power test.`;
+                if (intent.includes('Flip 1') && intent.includes('MUCH')) return `Flip 1 much clearer — rotating axis +10\u00B0.`;
+                if (intent.includes('Flip 1') && intent.includes('better')) return `Flip 1 clearer — rotating axis +5\u00B0.`;
+                if (intent.includes('Flip 2') && intent.includes('MUCH')) return `Flip 2 much clearer — rotating axis -10\u00B0.`;
+                if (intent.includes('Flip 2') && intent.includes('better')) return `Flip 2 clearer — rotating axis -5\u00B0.`;
+                if (intent.includes('Repeat')) return 'Repeating flip comparison for confirmation.';
+                break;
+            }
+
+            case 'jcc_power_right': case 'jcc_power_left': {
+                const eye = this.currentPhase.includes('right') ? 'right' : 'left';
+                const cyl = eye === 'right' ? p.right.cyl : p.left.cyl;
+                if (intent === 'AUTO_FLIP') return 'Auto-flipping from Flip 1 to Flip 2.';
+                if (intent.includes('Both Same')) return `Cylinder power locked at ${fmt(cyl)}. Moving to duochrome test.`;
+                if (intent.includes('Flip 1') && intent.includes('MUCH')) return `Flip 1 much clearer — increasing CYL by 0.50D.`;
+                if (intent.includes('Flip 1') && intent.includes('better')) return `Flip 1 clearer — increasing CYL by 0.25D.`;
+                if (intent.includes('Flip 2') && intent.includes('MUCH')) return `Flip 2 much clearer — decreasing CYL by 0.50D.`;
+                if (intent.includes('Flip 2') && intent.includes('better')) return `Flip 2 clearer — decreasing CYL by 0.25D.`;
+                if (intent.includes('Repeat')) return 'Repeating flip comparison.';
+                break;
+            }
+
+            case 'duochrome_right': case 'duochrome_left': {
+                const eye = this.currentPhase.includes('right') ? 'right' : 'left';
+                const sph = eye === 'right' ? p.right.sph : p.left.sph;
+                if (intent === 'Red') return `Red clearer — under-corrected. Adding -0.25D SPH (RAM: Red Add Minus). SPH ${fmt(sph)} will become ${fmt(sph - 0.25)}.`;
+                if (intent === 'Green') return `Green clearer — over-corrected. Adding +0.25D SPH (GAP: Green Add Plus). SPH ${fmt(sph)} will become ${fmt(sph + 0.25)}.`;
+                if (intent === 'Both Same') return `Red and green equal — spherical power optimized at ${fmt(sph)}.`;
+                break;
+            }
+
+            case 'binocular_balance':
+                if (intent.includes('Top') || intent.includes('Right Eye')) return `Top line (right eye) blurrier — adding +0.25D to left eye to equalize. L SPH ${fmt(p.left.sph)} will become ${fmt(p.left.sph + 0.25)}.`;
+                if (intent.includes('Bottom') || intent.includes('Left Eye')) return `Bottom line (left eye) blurrier — adding +0.25D to right eye. R SPH ${fmt(p.right.sph)} will become ${fmt(p.right.sph + 0.25)}.`;
+                if (intent.includes('same')) return 'Both eyes balanced — exam complete.';
+                if (intent === 'Prev State') return 'Reverting to previous power (operator undo).';
+                break;
+        }
+
+        return `${this.currentPhase}: ${intent}`;
+    }
+
     // ─── Start Exam ────────────────────────────────
     async startExam() {
         this.examStarted = true;
@@ -311,14 +499,18 @@ class RefractionEngine {
             power: this.getPower(),
             occluder: this.currentRow.occluder_state,
             chart: this.currentRow.chart_display,
+            rationale: this._getActionRationale(intent),
+            arReference: this.patientData.autorefraction,
         });
 
         switch (this.currentPhase) {
             case 'distance_vision':        return this._processDistanceVision(intent);
+            case 'fogging_right':          return this._processFogging('right', intent);
             case 'right_eye_refraction':   return this._processRefraction('right', intent);
             case 'jcc_axis_right':         return this._processJCCAxis('right', intent);
             case 'jcc_power_right':        return this._processJCCPower('right', intent);
             case 'duochrome_right':        return this._processDuochrome('right', intent);
+            case 'fogging_left':           return this._processFogging('left', intent);
             case 'left_eye_refraction':    return this._processRefraction('left', intent);
             case 'jcc_axis_left':          return this._processJCCAxis('left', intent);
             case 'jcc_power_left':         return this._processJCCPower('left', intent);
@@ -347,11 +539,67 @@ class RefractionEngine {
             this.flags.push({ type: 'pinhole_no_improvement', phase: 'distance_vision', detail: 'Pinhole did not improve vision — possible pathology, needs optometrist review' });
         }
 
-        return this._transitionToRefraction('right');
+        return this._transitionToFogging('right');
     }
 
     // ═══════════════════════════════════════════════
-    // PHASE B & D: Eye Refraction (shared logic)
+    // PHASE A2 & C2: Fogging (relax accommodation)
+    // ═══════════════════════════════════════════════
+    async _transitionToFogging(eye) {
+        this.currentPhase = eye === 'right' ? 'fogging_right' : 'fogging_left';
+
+        const occluder = eye === 'right' ? 'Left_Occluded' : 'Right_Occluded';
+        const sphKey = eye === 'right' ? 'r_sph' : 'l_sph';
+
+        this.currentRow = this._copyRowState();
+        this.currentRow.occluder_state = occluder;
+
+        // Add +2.00D fog over current SPH (which is AR value)
+        this.currentRow[sphKey] += this.fogAmount;
+
+        // Show a readable chart so patient can confirm blur
+        this.currentRow.chart_display = this.cv5000.snellenCharts[0];
+
+        await this.cv5000.setPower({
+            r_sph: this.currentRow.r_sph, r_cyl: this.currentRow.r_cyl, r_axis: this.currentRow.r_axis,
+            l_sph: this.currentRow.l_sph, l_cyl: this.currentRow.l_cyl, l_axis: this.currentRow.l_axis,
+            occluder,
+        });
+        await this.cv5000.setChart(this.cv5000.snellenCharts[0]);
+
+        this.emit('phase-change', this.getProgress());
+        return this._buildResponse();
+    }
+
+    async _processFogging(eye, intent) {
+        const sphKey = eye === 'right' ? 'r_sph' : 'l_sph';
+        const auxLens = eye === 'right' ? 'AuxLensL' : 'AuxLensR';
+
+        if (intent.includes('see clearly')) {
+            // Not enough fog — add +0.50D more
+            const prevSph = this.currentRow[sphKey];
+            this.currentRow = this._copyRowState();
+            this.currentRow[sphKey] = prevSph + 0.50;
+
+            await this.cv5000.setPowerWithPrevState({
+                prev_r_sph: eye === 'right' ? prevSph : this.currentRow.r_sph,
+                prev_r_cyl: this.currentRow.r_cyl, prev_r_axis: this.currentRow.r_axis,
+                prev_l_sph: eye === 'left' ? prevSph : this.currentRow.l_sph,
+                prev_l_cyl: this.currentRow.l_cyl, prev_l_axis: this.currentRow.l_axis,
+                r_sph: this.currentRow.r_sph, r_cyl: this.currentRow.r_cyl, r_axis: this.currentRow.r_axis,
+                l_sph: this.currentRow.l_sph, l_cyl: this.currentRow.l_cyl, l_axis: this.currentRow.l_axis,
+                prev_aux_lens: auxLens, aux_lens: auxLens,
+            });
+
+            return this._buildResponse();
+        }
+
+        // "Yes, it's blurry" — fog confirmed, proceed to refraction (de-fogging)
+        return this._transitionToRefraction(eye);
+    }
+
+    // ═══════════════════════════════════════════════
+    // PHASE B & D: Eye Refraction / De-fog (shared logic)
     // ═══════════════════════════════════════════════
     async _transitionToRefraction(eye) {
         this.currentPhase = eye === 'right' ? 'right_eye_refraction' : 'left_eye_refraction';
@@ -699,7 +947,7 @@ class RefractionEngine {
         const sphKey = eye === 'right' ? 'r_sph' : 'l_sph';
         const auxLens = eye === 'right' ? 'AuxLensL' : 'AuxLensR';
         const nextTransition = eye === 'right'
-            ? () => this._transitionToRefraction('left')
+            ? () => this._transitionToFogging('left')
             : () => this._transitionToBinocularBalance();
 
         if (intent === 'Both Same') {
