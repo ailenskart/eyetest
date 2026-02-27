@@ -33,6 +33,7 @@ class EyeTestApp {
             this._bindIntakeEvents();
             this._bindExamEvents();
             this._bindResultsEvents();
+            this._initVideoPanel();
             this._updateTimestamp();
             setInterval(() => this._updateTimestamp(), 1000);
         });
@@ -206,6 +207,287 @@ class EyeTestApp {
     }
 
     // ════════════════════════════════════════════
+    // VIDEO ANALYSIS / SLM PANEL
+    // ════════════════════════════════════════════
+    _initVideoPanel() {
+        // Initialize SLM and Video Analyzer
+        this.slm = new OptomSLM();
+        this.videoAnalyzer = new VideoAnalyzer(this.slm);
+
+        // Tab switching
+        document.querySelectorAll('.rp-tab').forEach(tab => {
+            tab.addEventListener('click', () => {
+                document.querySelectorAll('.rp-tab').forEach(t => t.classList.remove('active'));
+                document.querySelectorAll('.rp-tab-content').forEach(c => c.classList.remove('active'));
+                tab.classList.add('active');
+                const targetId = tab.dataset.tab === 'log' ? 'logTab' : 'videoTab';
+                document.getElementById(targetId).classList.add('active');
+            });
+        });
+
+        // Video URL load
+        document.getElementById('vaLoadBtn').addEventListener('click', () => this._vaLoadVideo());
+        document.getElementById('vaVideoUrl').addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') this._vaLoadVideo();
+        });
+
+        // File upload
+        document.getElementById('vaFileInput').addEventListener('change', (e) => {
+            if (e.target.files.length > 0) this._vaLoadVideoFile(e.target.files[0]);
+        });
+
+        // Analyze button
+        document.getElementById('vaAnalyzeBtn').addEventListener('click', () => this._vaAnalyze());
+
+        // Annotation buttons
+        document.getElementById('vaMarkPhaseBtn').addEventListener('click', () => {
+            const marker = document.getElementById('vaPhaseMarker');
+            marker.classList.toggle('hidden');
+            document.getElementById('vaPowerEntry').classList.toggle('hidden');
+        });
+
+        document.getElementById('vaPhaseStartBtn').addEventListener('click', () => this._vaMarkPhase('phase_start'));
+        document.getElementById('vaPhaseEndBtn').addEventListener('click', () => this._vaMarkPhase('phase_end'));
+        document.getElementById('vaMarkEventBtn').addEventListener('click', () => this._vaMarkEvent());
+
+        // Submit / Validate / Reset
+        document.getElementById('vaSubmitBtn').addEventListener('click', () => this._vaSubmitToSLM());
+        document.getElementById('vaValidateBtn').addEventListener('click', () => this._vaValidate());
+        document.getElementById('vaResetBtn').addEventListener('click', () => this._vaReset());
+
+        // Wire analyzer events
+        this.videoAnalyzer.on('video-loaded', (data) => {
+            const player = document.getElementById('vaVideoPlayer');
+            player.src = this.videoAnalyzer.videoUrl;
+            document.getElementById('vaPlayerSection').classList.remove('hidden');
+            document.getElementById('vaAnnotationSection').classList.remove('hidden');
+            document.getElementById('vaPlayerStatus').textContent = `${this._vaFmtDuration(data.duration)}`;
+            document.getElementById('vaSubmitBtn').disabled = false;
+            document.getElementById('vaValidateBtn').disabled = false;
+        });
+
+        this.videoAnalyzer.on('analysis-progress', (data) => {
+            document.getElementById('vaProgressBar').style.width = `${data.progress}%`;
+            document.getElementById('vaProgressText').textContent = `${data.progress}%`;
+        });
+
+        this.videoAnalyzer.on('analysis-complete', () => {
+            document.getElementById('vaProgressSection').classList.add('hidden');
+        });
+
+        this.videoAnalyzer.on('annotation-added', () => this._vaRenderTimeline());
+        this.videoAnalyzer.on('annotation-removed', () => this._vaRenderTimeline());
+        this.videoAnalyzer.on('phases-updated', () => {
+            const count = this.videoAnalyzer.getExtractedPhases().length;
+            document.getElementById('vaSubmitBtn').disabled = count === 0;
+            document.getElementById('vaValidateBtn').disabled = count === 0;
+        });
+
+        this.videoAnalyzer.on('slm-updated', (data) => this._vaUpdateSLMDisplay(data));
+        this.videoAnalyzer.on('validation-complete', (data) => this._vaShowFlags(data.flags));
+
+        // Populate reference video dropdown
+        const refSelect = document.getElementById('vaRefSelect');
+        this.slm.referenceVideos.forEach((url, i) => {
+            const opt = document.createElement('option');
+            opt.value = url;
+            // Extract a readable ID from the URL
+            const parts = url.split('/');
+            const id = parts[parts.length - 1].replace('.mp4', '').substring(0, 12);
+            opt.textContent = `Session ${i + 1} (${id}...)`;
+            refSelect.appendChild(opt);
+        });
+        refSelect.addEventListener('change', () => {
+            if (refSelect.value) {
+                document.getElementById('vaVideoUrl').value = refSelect.value;
+            }
+        });
+
+        // Initial SLM display
+        this._vaUpdateSLMStats();
+    }
+
+    async _vaLoadVideo() {
+        const url = document.getElementById('vaVideoUrl').value.trim();
+        if (!url) return;
+        try {
+            await this.videoAnalyzer.loadVideo(url);
+        } catch (e) {
+            document.getElementById('vaPlayerStatus').textContent = `Error: ${e.message}`;
+        }
+    }
+
+    async _vaLoadVideoFile(file) {
+        try {
+            await this.videoAnalyzer.loadVideoFile(file);
+        } catch (e) {
+            document.getElementById('vaPlayerStatus').textContent = `Error: ${e.message}`;
+        }
+    }
+
+    async _vaAnalyze() {
+        document.getElementById('vaProgressSection').classList.remove('hidden');
+        document.getElementById('vaProgressBar').style.width = '0%';
+        try {
+            await this.videoAnalyzer.analyzeVideo();
+        } catch (e) {
+            document.getElementById('vaPlayerStatus').textContent = `Error: ${e.message}`;
+        }
+    }
+
+    _vaMarkPhase(type) {
+        const player = document.getElementById('vaVideoPlayer');
+        const phase = document.getElementById('vaPhaseSelect').value;
+        const sph = parseFloat(document.getElementById('vaPowerSph').value) || 0;
+        const cyl = parseFloat(document.getElementById('vaPowerCyl').value) || 0;
+        const axis = parseFloat(document.getElementById('vaPowerAxis').value) || 180;
+
+        this.videoAnalyzer.addAnnotation(player.currentTime, type, {
+            phase,
+            power: { sph, cyl, axis, add: 0 },
+        });
+    }
+
+    _vaMarkEvent() {
+        const player = document.getElementById('vaVideoPlayer');
+        const phase = document.getElementById('vaPhaseSelect').value;
+        this.videoAnalyzer.addAnnotation(player.currentTime, 'event', {
+            phase,
+            intent: 'manual_observation',
+            note: `Event at ${this._vaFmtDuration(player.currentTime)}`,
+        });
+    }
+
+    _vaRenderTimeline() {
+        const container = document.getElementById('vaTimeline');
+        const timeline = this.videoAnalyzer.getTimeline();
+
+        if (timeline.length === 0) {
+            container.innerHTML = '<span class="va-timeline-empty">No annotations yet</span>';
+            return;
+        }
+
+        container.innerHTML = '';
+        timeline.forEach((entry, i) => {
+            const div = document.createElement('div');
+            div.className = 'va-timeline-entry';
+
+            const detail = entry.type === 'phase_start' || entry.type === 'phase_end'
+                ? entry.data.phase.replace(/_/g, ' ')
+                : entry.data.note || entry.data.intent || '';
+
+            div.innerHTML = `
+                <span class="va-tl-time">${this._vaFmtDuration(entry.timestamp)}</span>
+                <span class="va-tl-type ${entry.type}">${entry.type.replace('_', ' ')}</span>
+                <span class="va-tl-detail">${this._escapeHtml(detail)}</span>
+                <button class="va-tl-remove" data-idx="${i}">&times;</button>
+            `;
+
+            div.querySelector('.va-tl-remove').addEventListener('click', () => {
+                this.videoAnalyzer.removeAnnotation(i);
+            });
+
+            // Click to seek video
+            div.addEventListener('click', (e) => {
+                if (e.target.classList.contains('va-tl-remove')) return;
+                const player = document.getElementById('vaVideoPlayer');
+                if (player) player.currentTime = entry.timestamp;
+            });
+
+            container.appendChild(div);
+        });
+    }
+
+    _vaSubmitToSLM() {
+        try {
+            const result = this.videoAnalyzer.submitToSLM({
+                source: 'manual_annotation',
+            });
+            this._vaShowFlags(result.flags);
+            this._vaUpdateSLMStats();
+        } catch (e) {
+            document.getElementById('vaPlayerStatus').textContent = e.message;
+        }
+    }
+
+    _vaValidate() {
+        const flags = this.videoAnalyzer.validateOnly();
+        this._vaShowFlags(flags);
+    }
+
+    _vaShowFlags(flags) {
+        const section = document.getElementById('vaFlagsSection');
+        const list = document.getElementById('vaFlagsList');
+        const badge = document.getElementById('vaFlagCount');
+
+        if (!flags || flags.length === 0) {
+            section.classList.add('hidden');
+            return;
+        }
+
+        section.classList.remove('hidden');
+        badge.textContent = flags.length;
+        list.innerHTML = '';
+
+        flags.forEach(flag => {
+            const div = document.createElement('div');
+            div.className = `va-flag-item ${flag.severity}`;
+            div.textContent = flag.description;
+            list.appendChild(div);
+        });
+    }
+
+    _vaUpdateSLMDisplay(data) {
+        this._vaUpdateSLMStats();
+    }
+
+    _vaUpdateSLMStats() {
+        const summary = this.slm.getModelSummary();
+        document.getElementById('vaSlmCount').textContent = `${summary.videosAnalyzed} video${summary.videosAnalyzed !== 1 ? 's' : ''}`;
+
+        const statsEl = document.getElementById('vaSlmStats');
+        if (summary.videosAnalyzed === 0) {
+            statsEl.innerHTML = '<span class="va-stat">No data yet — submit videos to teach</span>';
+        } else {
+            let html = `<span class="va-stat">Phases learned: <span class="va-stat-value">${summary.phasesLearned}</span></span>`;
+            html += `<span class="va-stat">Rules: <span class="va-stat-value">${summary.flagRuleCount}</span></span>`;
+            if (summary.lastUpdated) {
+                html += `<span class="va-stat">Last: ${new Date(summary.lastUpdated).toLocaleDateString()}</span>`;
+            }
+            // Timing summary
+            const phases = Object.keys(summary.timingSummary);
+            if (phases.length > 0) {
+                html += '<span class="va-stat" style="margin-top:0.25rem;font-weight:600;color:var(--accent-cyan)">Avg Phase Timing:</span>';
+                phases.slice(0, 6).forEach(p => {
+                    const t = summary.timingSummary[p];
+                    const shortName = p.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+                    html += `<span class="va-stat">${shortName}: <span class="va-stat-value">${t.avgSeconds}s</span> <span style="color:var(--text-muted)">(n=${t.samples})</span></span>`;
+                });
+            }
+            statsEl.innerHTML = html;
+        }
+    }
+
+    _vaReset() {
+        this.videoAnalyzer.reset();
+        document.getElementById('vaVideoUrl').value = '';
+        document.getElementById('vaPlayerSection').classList.add('hidden');
+        document.getElementById('vaProgressSection').classList.add('hidden');
+        document.getElementById('vaAnnotationSection').classList.add('hidden');
+        document.getElementById('vaFlagsSection').classList.add('hidden');
+        document.getElementById('vaTimeline').innerHTML = '<span class="va-timeline-empty">No annotations yet</span>';
+        document.getElementById('vaSubmitBtn').disabled = true;
+        document.getElementById('vaValidateBtn').disabled = true;
+        document.getElementById('vaPlayerStatus').textContent = 'Ready';
+    }
+
+    _vaFmtDuration(seconds) {
+        const m = Math.floor(seconds / 60);
+        const s = Math.floor(seconds % 60);
+        return `${m}:${s.toString().padStart(2, '0')}`;
+    }
+
+    // ════════════════════════════════════════════
     // ENGINE RESPONSE HANDLER
     // ════════════════════════════════════════════
     async _handleEngineResponse(response) {
@@ -214,10 +496,8 @@ class EyeTestApp {
         // Update power display
         if (response.power) this._updatePowerDisplay(response.power);
 
-        // Update occluder/chart
-        if (response.occluder) document.getElementById('occluderDisplay').textContent = response.occluder;
-        if (response.chart) document.getElementById('chartDisplay').textContent = response.chart;
-        if (response.chartVA) document.getElementById('vaDisplay').textContent = response.chartVA;
+        // Update CV-5000 panel (occluder, chart preview, eye toggle, etc.)
+        this._updateCV5000Panel(response);
 
         // Update progress
         if (response.progress) this._updateProgress(response.progress);
@@ -385,25 +665,166 @@ class EyeTestApp {
 
     _updateConnectionBadge(simulated) {
         const badge = document.getElementById('connectionBadge');
+        const cvDot = document.getElementById('cvConnectionDot');
         if (simulated) {
             badge.textContent = 'Simulated';
             badge.className = 'badge badge-warning';
+            if (cvDot) cvDot.className = 'cv-connection-dot simulated';
         } else {
             badge.textContent = `Connected: ${this.cv5000.phoroptertId}`;
             badge.className = 'badge badge-success';
+            if (cvDot) cvDot.className = 'cv-connection-dot';
         }
     }
 
     _updatePowerDisplay(power) {
         const fmt = (v) => (v >= 0 ? '+' : '') + v.toFixed(2);
-        document.getElementById('rSphDisplay').textContent = fmt(power.right.sph);
+
+        // Update S/C/A/ADD table values
+        const rSph = document.getElementById('rSphDisplay');
+        const lSph = document.getElementById('lSphDisplay');
+        rSph.textContent = fmt(power.right.sph);
         document.getElementById('rCylDisplay').textContent = fmt(power.right.cyl);
         document.getElementById('rAxisDisplay').textContent = Math.round(power.right.axis);
         document.getElementById('rAddDisplay').textContent = fmt(power.right.add);
-        document.getElementById('lSphDisplay').textContent = fmt(power.left.sph);
+        lSph.textContent = fmt(power.left.sph);
         document.getElementById('lCylDisplay').textContent = fmt(power.left.cyl);
         document.getElementById('lAxisDisplay').textContent = Math.round(power.left.axis);
         document.getElementById('lAddDisplay').textContent = fmt(power.left.add);
+
+        // Flash animation on changed values
+        document.querySelectorAll('.cv-val').forEach(el => {
+            el.classList.remove('highlight');
+            void el.offsetWidth; // reflow
+            el.classList.add('highlight');
+        });
+    }
+
+    _updateCV5000Panel(response) {
+        // ── Occluder state ──
+        const occluder = response.occluder || 'BINO';
+        const occR = document.getElementById('cvOccluderR');
+        const occL = document.getElementById('cvOccluderL');
+
+        // Reset all
+        occR.className = 'cv-occluder-circle';
+        occL.className = 'cv-occluder-circle';
+
+        if (occluder === 'Left_Occluded' || occluder === 'LEFT') {
+            occR.classList.add('active-eye');
+            occR.classList.add('open');
+            occL.classList.add('closed');
+            // Gray out left column
+            document.querySelectorAll('.cv-val-l').forEach(el => el.classList.add('occluded'));
+            document.querySelectorAll('.cv-val-r').forEach(el => el.classList.remove('occluded'));
+        } else if (occluder === 'Right_Occluded' || occluder === 'RIGHT') {
+            occR.classList.add('closed');
+            occL.classList.add('active-eye');
+            occL.classList.add('open');
+            document.querySelectorAll('.cv-val-r').forEach(el => el.classList.add('occluded'));
+            document.querySelectorAll('.cv-val-l').forEach(el => el.classList.remove('occluded'));
+        } else {
+            // BINO
+            occR.classList.add('active-eye');
+            occR.classList.add('open');
+            occL.classList.add('active-eye');
+            occL.classList.add('open');
+            document.querySelectorAll('.cv-val-r').forEach(el => el.classList.remove('occluded'));
+            document.querySelectorAll('.cv-val-l').forEach(el => el.classList.remove('occluded'));
+        }
+
+        // Hidden compat fields
+        document.getElementById('occluderDisplay').textContent = occluder;
+
+        // ── Eye toggle ──
+        document.querySelectorAll('.cv-eye-toggle-btn').forEach(btn => btn.classList.remove('active'));
+        if (occluder === 'Left_Occluded' || occluder === 'LEFT') {
+            document.getElementById('cvEyeR').classList.add('active');
+        } else if (occluder === 'Right_Occluded' || occluder === 'RIGHT') {
+            document.getElementById('cvEyeL').classList.add('active');
+        } else {
+            document.getElementById('cvEyeBino').classList.add('active');
+        }
+
+        // ── Header status text ──
+        const phase = response.progress?.phaseName || '';
+        const cvStatus = document.getElementById('cvHeaderStatus');
+        if (phase) cvStatus.textContent = phase;
+
+        // ── Chart preview ──
+        if (response.chart || response.chartVA) {
+            this._updateCVChartPreview(response.chart, response.chartVA);
+        }
+
+        // ── PD ──
+        if (this.engine && this.engine.patientData) {
+            document.getElementById('cvPdValue').textContent =
+                (this.engine.patientData.pd || 63).toFixed(1);
+        }
+
+        // Hidden compat fields
+        if (response.chart) document.getElementById('chartDisplay').textContent = response.chart;
+        if (response.chartVA) document.getElementById('vaDisplay').textContent = response.chartVA;
+    }
+
+    _updateCVChartPreview(chartName, va) {
+        const optotype = document.getElementById('cvChartDisplay');
+        const nameEl = document.getElementById('cvChartName');
+        const vaEl = document.getElementById('cvChartVA');
+
+        const name = chartName || '';
+        const vaText = va || '';
+
+        nameEl.textContent = name.replace(/_/g, ' ');
+        vaEl.textContent = vaText;
+
+        // Reset classes
+        optotype.className = 'cv-chart-optotype';
+
+        // Determine optotype display based on chart type
+        if (name.includes('duochrome')) {
+            optotype.classList.add('duochrome');
+            optotype.innerHTML = '<span class="duo-red">5 3 2</span><span class="duo-green">5 4 0</span>';
+        } else if (name.includes('jcc') || name.includes('dot')) {
+            optotype.classList.add('jcc-dots');
+            optotype.textContent = '\u25CF \u25CB \u25CF\n\u25CB \u25CF \u25CB';
+        } else if (name.includes('bino') || name.includes('balance')) {
+            optotype.textContent = 'T O P\n\u2500\u2500\u2500\nB O T';
+        } else if (name.includes('e_chart') || name.includes('echart') || name.includes('E_chart')) {
+            // E-chart: show single large E
+            const sizeMap = { '400': 3, '200': 2.5, '150': 2.25, '100': 2, '80': 1.75, '70': 1.5, '60': 1.35, '50': 1.2, '40': 1.1, '30': 1, '25': 0.9, '20': 0.8, '15': 0.7 };
+            let fontSize = 2;
+            for (const [sz, fs] of Object.entries(sizeMap)) {
+                if (name.includes(sz) || vaText.includes(sz)) { fontSize = fs; break; }
+            }
+            optotype.style.fontSize = `${fontSize}rem`;
+            optotype.textContent = '\u042E'; // Ш-like E character
+        } else if (name.includes('snellen') || name.includes('alphabetic')) {
+            // Snellen alphabetic
+            const lines = [
+                { va: '200', text: 'E' },
+                { va: '100', text: 'F P' },
+                { va: '70', text: 'T O Z' },
+                { va: '50', text: 'L P E D' },
+                { va: '40', text: 'P E C F D' },
+                { va: '30', text: 'E D F C Z P' },
+                { va: '25', text: 'F E L O P Z D' },
+                { va: '20', text: 'D E F P O T E C' },
+            ];
+            // Show lines appropriate to current VA
+            let showLines = 3;
+            const vaNum = parseInt(vaText.replace(/[^0-9]/g, '')) || 200;
+            const startIdx = lines.findIndex(l => parseInt(l.va) <= vaNum);
+            const start = Math.max(0, startIdx >= 0 ? startIdx : 0);
+            const end = Math.min(lines.length, start + showLines);
+            const text = lines.slice(start, end).map(l => l.text).join('\n');
+            optotype.textContent = text || 'E';
+            optotype.style.fontSize = '';
+        } else {
+            // Default: show a large letter
+            optotype.textContent = 'E';
+            optotype.style.fontSize = '';
+        }
     }
 
     _updateProgress(progress) {
