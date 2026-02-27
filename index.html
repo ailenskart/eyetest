@@ -304,14 +304,59 @@
                         <span>Auto-flipping in <span id="flipCountdown">2</span>s...</span>
                     </div>
 
-                    <!-- Clinical Rationale -->
+                    <!-- Clinical Rationale (expanded educational panel) -->
                     <div id="rationaleArea" class="rationale-area hidden">
                         <div class="rationale-header">
                             <span class="rationale-title">Clinical Rationale</span>
                             <span id="rationalePhase" class="rationale-phase"></span>
+                            <div class="rationale-mode-toggle">
+                                <button id="rationaleModeBtn" class="btn btn-sm rationale-mode-btn" title="Toggle between Operator and Optometrist view">Operator</button>
+                            </div>
                         </div>
+
+                        <!-- Always visible: What & Why -->
                         <div id="rationaleWhy" class="rationale-why"></div>
                         <div id="rationaleClinical" class="rationale-clinical"></div>
+
+                        <!-- Operator Guide (for non-optometrists) -->
+                        <div id="rationaleGuideSection" class="rationale-section rationale-guide-section">
+                            <div class="rationale-section-header" data-toggle="rationaleGuideBody">
+                                <span class="rationale-section-icon">&#9432;</span>
+                                <span class="rationale-section-label">Operator Guide</span>
+                                <span class="rationale-chevron">&#9660;</span>
+                            </div>
+                            <div id="rationaleGuideBody" class="rationale-section-body">
+                                <div id="rationaleGuide" class="rationale-guide"></div>
+                                <div class="rationale-expected-row">
+                                    <span class="rationale-expected-label">Expected Response:</span>
+                                    <span id="rationaleExpected" class="rationale-expected-value"></span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Watch For (warnings) -->
+                        <div id="rationaleWatchSection" class="rationale-section rationale-watch-section hidden">
+                            <div class="rationale-section-header" data-toggle="rationaleWatchBody">
+                                <span class="rationale-section-icon">&#9888;</span>
+                                <span class="rationale-section-label">Watch For</span>
+                                <span class="rationale-chevron">&#9660;</span>
+                            </div>
+                            <div id="rationaleWatchBody" class="rationale-section-body">
+                                <div id="rationaleWatchFor" class="rationale-watch-text"></div>
+                            </div>
+                        </div>
+
+                        <!-- Decision Logic (for optometrist validation) -->
+                        <div id="rationaleDecisionSection" class="rationale-section rationale-decision-section hidden">
+                            <div class="rationale-section-header" data-toggle="rationaleDecisionBody">
+                                <span class="rationale-section-icon">&#9881;</span>
+                                <span class="rationale-section-label">Decision Logic</span>
+                                <span class="rationale-chevron">&#9660;</span>
+                            </div>
+                            <div id="rationaleDecisionBody" class="rationale-section-body">
+                                <div id="rationaleDecisionLogic" class="rationale-decision-text"></div>
+                            </div>
+                        </div>
                     </div>
 
                     <!-- Current question -->

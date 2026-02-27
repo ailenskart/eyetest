@@ -102,7 +102,64 @@ class RefractionEngine {
         this.rowCounter = 0;
 
         // ── Fogging ──
-        this.fogAmount = 2.0; // +2.00D standard clinical fog
+        this.lastFogCalc = null; // stores last fog calculation details for rationale
+    }
+
+    // ─── Dynamic Fog Calculation ──────────────────
+    _calculateFogAmount(eye) {
+        const age = this.patientData.age || 30;
+        const ar = eye === 'right' ? this.patientData.autorefraction.OD : this.patientData.autorefraction.OS;
+        const lm = eye === 'right' ? this.patientData.lensometry.OD : this.patientData.lensometry.OS;
+        const hasOldRx = this.patientData.lensometry.hasOldRx;
+
+        // ── 1. Base fog by age (accommodation amplitude) ──
+        // Younger patients accommodate more aggressively → need more fog
+        let baseFog, ageReason;
+        if (age <= 15)      { baseFog = 2.50; ageReason = `Age ${age} (<=15): very strong accommodation — 2.50D base fog`; }
+        else if (age <= 25) { baseFog = 2.00; ageReason = `Age ${age} (16-25): strong accommodation — 2.00D base fog`; }
+        else if (age <= 35) { baseFog = 1.50; ageReason = `Age ${age} (26-35): moderate accommodation — 1.50D base fog`; }
+        else if (age <= 45) { baseFog = 1.00; ageReason = `Age ${age} (36-45): weakening accommodation — 1.00D base fog`; }
+        else                { baseFog = 0.75; ageReason = `Age ${age} (>45): presbyopic, minimal accommodation — 0.75D base fog`; }
+
+        // ── 2. Adjust for high refractive error ──
+        // High refractive errors: the eye is already deeply corrected,
+        // large fog on top can cause excessive blur that disorients the patient
+        let arAdjust = 0, arReason;
+        const absSph = Math.abs(ar.sph);
+        if (absSph > 8.0) {
+            arAdjust = -0.75;
+            arReason = `High error (|AR SPH| = ${absSph.toFixed(2)} > 8.00) — reducing fog by 0.75D to avoid disorientation`;
+        } else if (absSph > 6.0) {
+            arAdjust = -0.50;
+            arReason = `Moderate-high error (|AR SPH| = ${absSph.toFixed(2)} > 6.00) — reducing fog by 0.50D`;
+        } else if (absSph > 4.0) {
+            arAdjust = -0.25;
+            arReason = `Moderate error (|AR SPH| = ${absSph.toFixed(2)} > 4.00) — reducing fog by 0.25D`;
+        } else {
+            arReason = `Normal range (|AR SPH| = ${absSph.toFixed(2)} <= 4.00) — no adjustment needed`;
+        }
+
+        // ── 3. Cross-check with old Rx ──
+        // If patient has an old Rx and the AR differs significantly, note it
+        let lmNote = '';
+        if (hasOldRx && lm.sph !== 0) {
+            const diff = Math.abs(ar.sph - lm.sph);
+            if (diff > 1.5) {
+                lmNote = `Note: AR SPH (${ar.sph.toFixed(2)}) differs from old Rx (${lm.sph.toFixed(2)}) by ${diff.toFixed(2)}D — large change, verify AR accuracy.`;
+            }
+        }
+
+        const finalFog = Math.round(Math.max(0.50, baseFog + arAdjust) * 4) / 4; // round to 0.25D
+
+        return {
+            amount: finalFog,
+            baseFog,
+            arAdjust,
+            ageReason,
+            arReason,
+            lmNote,
+            formula: `${baseFog.toFixed(2)}D (age) ${arAdjust !== 0 ? (arAdjust > 0 ? '+' : '') + arAdjust.toFixed(2) + 'D (AR adj)' : ''} = ${finalFog.toFixed(2)}D`.trim(),
+        };
     }
 
     // ─── Event System ──────────────────────────────
@@ -288,173 +345,288 @@ class RefractionEngine {
         return intents;
     }
 
-    // ─── Phase Rationale (clinical reasoning for current step) ──
+    // ─── Phase Rationale (clinical reasoning + operator guide + validation) ──
     _getRationale() {
         const fmt = (v) => `${v >= 0 ? '+' : ''}${v.toFixed(2)}`;
         const fmtEye = (e) => `${fmt(e.sph)}/${fmt(e.cyl)}x${e.axis}`;
         const ar = this.patientData.autorefraction;
         const p = this.getPower();
+        const age = this.patientData.age || 30;
+        const fc = this.lastFogCalc;
 
         switch (this.currentPhase) {
             case 'distance_vision':
                 return {
                     phase: 'Baseline Distance Vision',
-                    why: `AR loaded into phoropter: OD ${fmtEye(ar.OD)}, OS ${fmtEye(ar.OS)}. Checking if patient can see the largest chart with AR as starting correction.`,
+                    why: `AR loaded into phoropter: OD ${fmtEye(ar.OD)}, OS ${fmtEye(ar.OS)}. Checking if patient can see the largest chart (20/400 E) with AR as starting correction.`,
                     clinical: 'The auto-refractometer (AR) gives an objective measurement of refractive error. We use it as a starting point and refine subjectively. Binocular check first to verify AR gives functional distance vision.',
+                    guide: 'Both eyes are open. A large "E" letter is displayed on the chart. Ask the patient if they can see the E. This is just a quick baseline check — not a precise measurement yet.',
+                    expected: '"Able to read" (most common) — the AR values give enough correction to see the big E. We proceed to fogging.',
+                    watchFor: 'If patient says "Unable to read" even with AR correction, we test with a pinhole. If pinhole doesn\'t help either, there may be a medical issue beyond just needing glasses — flag for optometrist.',
+                    decisionLogic: `AR values applied: OD ${fmtEye(ar.OD)}, OS ${fmtEye(ar.OS)}. Binocular (both eyes open). Chart: 20/400 E. Next: Fog right eye.`,
                 };
-            case 'fogging_right':
+
+            case 'fogging_right': {
+                const fogAmt = fc ? fc.amount : 0;
                 return {
                     phase: 'Fogging — Right Eye',
-                    why: `Right eye fogged: AR SPH ${fmt(ar.OD.sph)} + ${fmt(this.fogAmount)} fog = ${fmt(p.right.sph)}. Left eye occluded.`,
+                    why: `Right eye fogged: AR SPH ${fmt(ar.OD.sph)} + ${fmt(fogAmt)} fog = ${fmt(p.right.sph)}. Left eye occluded.`,
                     clinical: 'Fogging adds excess plus power to intentionally blur vision. This relaxes the ciliary muscle (accommodation), preventing over-minusing. Without fogging, the eye may accommodate (focus harder), making us prescribe too much minus.',
+                    guide: 'The left eye is covered. The right eye has extra "plus" lens power added so everything looks blurry on purpose. Ask the patient to confirm they see blurry. If they can still see clearly, we need to add more fog.',
+                    expected: '"Yes, it\'s blurry" — the fog is working, accommodation is relaxed. We then slowly reduce the fog to find the right prescription.',
+                    watchFor: 'If the patient keeps saying "I can still see clearly" after 3+ fog additions (>3.50D total), this suggests unusually strong accommodation — may need cycloplegic drops. Flag for optometrist.',
+                    decisionLogic: fc
+                        ? `Fog calculation: ${fc.ageReason}. ${fc.arReason}. Formula: ${fc.formula}.${fc.lmNote ? ' ' + fc.lmNote : ''}`
+                        : 'Dynamic fog calculation pending.',
                 };
+            }
+
             case 'right_eye_refraction':
                 return {
                     phase: 'De-fogging / Monocular Refraction — Right Eye',
                     why: `Reducing SPH in -0.25D steps from fogged value. Current: OD SPH ${fmt(p.right.sph)} (AR was ${fmt(ar.OD.sph)}).`,
                     clinical: 'Each -0.25D step sharpens the retinal image. "Able to read" means this line is resolved — advance to smaller letters. "Unable to read" twice consecutively — move to astigmatism refinement (JCC).',
+                    guide: 'The left eye is still covered. Show Snellen letter charts of decreasing size. Each time the patient says "Blurry" or "Unable to read", we add -0.25D (like a tiny glass lens adjustment). When they say "Able to read", we show smaller letters.',
+                    expected: 'The patient will alternate between "Able to read" (advance chart) and "Blurry"/"Unable to read" (add -0.25D). We stop when they fail twice in a row, or reach 20/20.',
+                    watchFor: `If SPH goes far beyond AR (more than 1.50D past ${fmt(ar.OD.sph)}), the patient may be over-accommodating or AR was inaccurate. Current SPH: ${fmt(p.right.sph)}.`,
+                    decisionLogic: `Step: -0.25D per "Blurry"/"Unable". Exit rule: 2x consecutive "Unable to read" OR 20/20 reached. Unable count: ${this.unableReadCount}/2. Chart index: ${this.currentChartIndex}.`,
                 };
+
             case 'jcc_axis_right':
                 return {
                     phase: 'JCC Axis Refinement — Right Eye',
                     why: `Refining cylinder axis. Current: OD CYL ${fmt(p.right.cyl)} x ${p.right.axis}\u00B0 (AR was ${fmt(ar.OD.cyl)} x ${ar.OD.axis}\u00B0).`,
                     clinical: 'The JCC flips two cross-cylinder lens orientations (Flip 1 vs Flip 2). The clearer flip tells us which direction to rotate the astigmatism axis. Converges when both flips look the same.',
+                    guide: 'A dot chart is shown. The machine automatically flips between two lens positions (Flip 1 and Flip 2). Ask the patient which flip looked clearer. The system adjusts the astigmatism angle based on their answer. We keep flipping until both look the same.',
+                    expected: 'Patient picks Flip 1 or Flip 2 several times. After a few rounds, they\'ll say "Both Same" — that means we found the right astigmatism angle. A "reversal" (switching from one preference to the other) also signals convergence.',
+                    watchFor: 'If axis shifts more than 30\u00B0 from AR, the astigmatism may be irregular. If patient consistently can\'t tell a difference, their astigmatism may be minimal — consider zeroing CYL.',
+                    decisionLogic: `Flip choices tracked: last=${this.jccLastChoice || 'none'}, sameCount=${this.jccSameChoiceCount}. Reversal detection active. \u00B15\u00B0 per choice, \u00B110\u00B0 for "MUCH better".`,
                 };
+
             case 'jcc_power_right':
                 return {
                     phase: 'JCC Power Refinement — Right Eye',
                     why: `Refining cylinder power. Current: OD CYL ${fmt(p.right.cyl)} (AR was ${fmt(ar.OD.cyl)}).`,
                     clinical: 'Same JCC flip comparison, now adjusting the amount of cylinder correction (\u00B10.25D steps). SPH is compensated when CYL crosses 0.50D boundaries to maintain spherical equivalent.',
+                    guide: 'Same flip comparison as before, but now we\'re adjusting the strength (power) of the astigmatism correction, not the angle. Patient picks which flip is clearer. We stop when both look the same.',
+                    expected: 'Similar to axis test — a few rounds of choosing, then "Both Same". If CYL was 0 and patient picks Flip 1 twice, it means no significant astigmatism — we skip ahead.',
+                    watchFor: `If CYL diverges significantly from AR (${fmt(ar.OD.cyl)}), verify with the patient. CYL change automatically adjusts SPH to keep the "spherical equivalent" balanced.`,
+                    decisionLogic: `CYL-zero special: Flip1 count at CYL=0: ${this.jccPowerZeroFlip1Count}/2 (2 = exit). SPH compensation at 0.50D CYL boundaries. Reversal detection active.`,
                 };
+
             case 'duochrome_right':
                 return {
                     phase: 'Duochrome (Red/Green) — Right Eye',
                     why: `Verifying spherical endpoint. Current: OD SPH ${fmt(p.right.sph)} (AR was ${fmt(ar.OD.sph)}).`,
-                    clinical: 'Red and green light focus at slightly different retinal points. Red clearer = under-corrected (RAM: Red Add Minus). Green clearer = over-corrected (GAP: Green Add Plus). Equal = optimal.',
+                    clinical: 'Red and green light focus at slightly different retinal points due to chromatic aberration. Red clearer = under-corrected (RAM: Red Add Minus). Green clearer = over-corrected (GAP: Green Add Plus). Equal = optimal.',
+                    guide: 'A chart with letters on a split red/green background is shown. Ask the patient: "Are the letters on the RED side or GREEN side clearer, or are they the same?" Adjust based on their answer.',
+                    expected: '"Both Same" means the sphere is perfect. Usually takes 1-3 rounds. Mnemonics: RAM (Red Add Minus), GAP (Green Add Plus).',
+                    watchFor: 'If the patient oscillates between Red and Green more than 3 times, accept the current value — it\'s within tolerance. A reversal (switching from Red to Green or vice versa) signals we\'re at the endpoint.',
+                    decisionLogic: `Duochrome tracking: last=${this.duochromeLastChoice || 'none'}, sameCount=${this.duochromeSameChoiceCount}. Red\u2192-0.25D SPH, Green\u2192+0.25D SPH. Reversal exits to next phase.`,
                 };
-            case 'fogging_left':
+
+            case 'fogging_left': {
+                const fogAmt = fc ? fc.amount : 0;
                 return {
                     phase: 'Fogging — Left Eye',
-                    why: `Left eye fogged: AR SPH ${fmt(ar.OS.sph)} + ${fmt(this.fogAmount)} fog = ${fmt(p.left.sph)}. Right eye occluded.`,
+                    why: `Left eye fogged: AR SPH ${fmt(ar.OS.sph)} + ${fmt(fogAmt)} fog = ${fmt(p.left.sph)}. Right eye occluded.`,
                     clinical: 'Same fogging principle for the left eye. Relaxing accommodation before monocular refraction to prevent over-minusing.',
+                    guide: 'Now the right eye is covered and we fog the left eye. Same process: confirm the patient sees blurry, then we\'ll de-fog step by step.',
+                    expected: '"Yes, it\'s blurry" — proceed to left eye refraction.',
+                    watchFor: 'Compare fog amount needed vs right eye. If significantly different, note it as unusual.',
+                    decisionLogic: fc
+                        ? `Fog calculation: ${fc.ageReason}. ${fc.arReason}. Formula: ${fc.formula}.${fc.lmNote ? ' ' + fc.lmNote : ''}`
+                        : 'Dynamic fog calculation pending.',
                 };
+            }
+
             case 'left_eye_refraction':
                 return {
                     phase: 'De-fogging / Monocular Refraction — Left Eye',
                     why: `Reducing SPH in -0.25D steps from fogged value. Current: OS SPH ${fmt(p.left.sph)} (AR was ${fmt(ar.OS.sph)}).`,
                     clinical: 'Same de-fogging process as right eye. Each -0.25D step tests if the image sharpens enough to read the next line.',
+                    guide: 'Right eye is covered. Same de-fogging process: show letter charts, add -0.25D when blurry, advance chart when readable.',
+                    expected: 'Same pattern as right eye. Typically the left eye takes a similar number of steps.',
+                    watchFor: `If final SPH for left eye differs from right eye by more than 2.00D (anisometropia), flag it. Right eye ended at OD SPH ${fmt(p.right.sph)}.`,
+                    decisionLogic: `Step: -0.25D per "Blurry"/"Unable". Exit rule: 2x consecutive "Unable" OR 20/20. Unable count: ${this.unableReadCount}/2. Chart index: ${this.currentChartIndex}.`,
                 };
+
             case 'jcc_axis_left':
                 return {
                     phase: 'JCC Axis Refinement — Left Eye',
                     why: `Refining cylinder axis. Current: OS CYL ${fmt(p.left.cyl)} x ${p.left.axis}\u00B0 (AR was ${fmt(ar.OS.cyl)} x ${ar.OS.axis}\u00B0).`,
                     clinical: 'Cross-cylinder axis test for the left eye. Same flip comparison to converge on the correct astigmatism axis.',
+                    guide: 'Same JCC axis test as right eye. Dot chart, automatic flips, patient picks clearer one.',
+                    expected: 'Patient picks flips until "Both Same" or a reversal is detected.',
+                    watchFor: 'Compare final axis with AR and with right eye. Large asymmetry between eyes is uncommon but possible.',
+                    decisionLogic: `Flip choices: last=${this.jccLastChoice || 'none'}, sameCount=${this.jccSameChoiceCount}. \u00B15\u00B0/\u00B110\u00B0 steps. Reversal detection active.`,
                 };
+
             case 'jcc_power_left':
                 return {
                     phase: 'JCC Power Refinement — Left Eye',
                     why: `Refining cylinder power. Current: OS CYL ${fmt(p.left.cyl)} (AR was ${fmt(ar.OS.cyl)}).`,
                     clinical: 'Cross-cylinder power test for the left eye. Adjusting cylinder in \u00B10.25D steps.',
+                    guide: 'Same JCC power test as right eye. Adjusting astigmatism strength for the left eye.',
+                    expected: 'Few rounds of flip comparison, then "Both Same".',
+                    watchFor: `Compare with right eye CYL (${fmt(p.right.cyl)}). Large difference may warrant rechecking.`,
+                    decisionLogic: `CYL-zero special: Flip1@CYL0 count: ${this.jccPowerZeroFlip1Count}/2. SPH compensation at 0.50D CYL boundaries. Reversal detection active.`,
                 };
+
             case 'duochrome_left':
                 return {
                     phase: 'Duochrome (Red/Green) — Left Eye',
                     why: `Verifying spherical endpoint. Current: OS SPH ${fmt(p.left.sph)} (AR was ${fmt(ar.OS.sph)}).`,
                     clinical: 'Duochrome test for left eye. Red clearer = add minus, Green clearer = add plus, Equal = done.',
+                    guide: 'Same red/green test as right eye. Ask which side is clearer or if both are the same.',
+                    expected: '"Both Same" in 1-3 rounds. RAM/GAP rules apply.',
+                    watchFor: `Compare final SPH with right eye (${fmt(p.right.sph)}). Large difference = anisometropia.`,
+                    decisionLogic: `Duochrome: last=${this.duochromeLastChoice || 'none'}, sameCount=${this.duochromeSameChoiceCount}. Red\u2192-0.25D, Green\u2192+0.25D. Reversal exits.`,
                 };
+
             case 'binocular_balance':
                 return {
                     phase: 'Binocular Balance',
                     why: `Equalizing both eyes. Current: OD SPH ${fmt(p.right.sph)}, OS SPH ${fmt(p.left.sph)}.`,
                     clinical: 'Both eyes view separate lines through prism dissociation. If one line is blurrier, that eye gets +0.25D to equalize. Goal: both eyes equally sharp for comfortable binocular vision.',
+                    guide: 'Both eyes are now open. The patient sees two rows of letters (one per eye, separated by a prism). Ask which row is blurrier — top or bottom. We adjust until both look the same.',
+                    expected: '"Both are same" means the eyes are balanced — exam is complete! Usually takes 1-3 adjustments.',
+                    watchFor: 'If balance takes more than 5 adjustments, the monocular refraction may need rechecking. If one eye is significantly weaker, it may never fully balance — accept the best achievable.',
+                    decisionLogic: `Top blurry (OD) \u2192 +0.25D OS SPH. Bottom blurry (OS) \u2192 +0.25D OD SPH. "Both same" \u2192 exam complete.`,
                 };
+
             default:
-                return { phase: this.currentPhase, why: '', clinical: '' };
+                return { phase: this.currentPhase, why: '', clinical: '', guide: '', expected: '', watchFor: '', decisionLogic: '' };
         }
     }
 
     // ─── Action Rationale (why this specific action was taken) ──
+    // Returns { summary, rule, delta } for structured JSON export
     _getActionRationale(intent) {
         const fmt = (v) => `${v >= 0 ? '+' : ''}${v.toFixed(2)}`;
         const ar = this.patientData.autorefraction;
         const p = this.getPower();
+        const fc = this.lastFogCalc;
+        const fogAmt = fc ? fc.amount : 2.0;
+
+        const _r = (summary, rule, delta) => ({ summary, rule, delta: delta || null });
 
         switch (this.currentPhase) {
             case 'distance_vision':
-                if (intent === 'Able to read') return `Patient can see 20/400 E with AR correction (OD ${fmt(ar.OD.sph)}, OS ${fmt(ar.OS.sph)}). Baseline vision confirmed. Proceeding to fogging.`;
-                if (intent === 'Blurry') return 'E is blurry but detectable with AR. Proceeding to fogging.';
-                if (intent === 'Unable to read') return 'Cannot read E with AR correction — activating pinhole to rule out pathology vs refractive error.';
-                if (intent.includes('pinhole')) return intent.includes('Still')
-                    ? 'Pinhole did not help — flagging possible pathology for optometrist review.'
-                    : 'Pinhole improved vision — confirms refractive (optical) issue, not pathology.';
+                if (intent === 'Able to read') return _r(
+                    `Patient can see 20/400 E with AR correction (OD ${fmt(ar.OD.sph)}, OS ${fmt(ar.OS.sph)}). Baseline confirmed.`,
+                    'Baseline OK → proceed to fogging', { next: 'fogging_right' });
+                if (intent === 'Blurry') return _r(
+                    'E is blurry but detectable with AR. Proceeding to fogging.',
+                    'Blurry but visible → proceed to fogging', { next: 'fogging_right' });
+                if (intent === 'Unable to read') return _r(
+                    'Cannot read E with AR correction — activating pinhole to differentiate refractive error from pathology.',
+                    'Unable → pinhole test (diagnostic branch)', { action: 'pinhole' });
+                if (intent.includes('pinhole')) return _r(
+                    intent.includes('Still')
+                        ? 'Pinhole did not help — flagging possible pathology for optometrist review.'
+                        : 'Pinhole improved vision — confirms refractive (optical) issue, not pathology.',
+                    intent.includes('Still') ? 'Pinhole negative → flag pathology' : 'Pinhole positive → refractive issue confirmed',
+                    { flag: intent.includes('Still') ? 'pinhole_no_improvement' : null });
                 break;
 
             case 'fogging_right':
-                if (intent.includes('blurry')) return `Fog confirmed at OD SPH ${fmt(p.right.sph)} (AR ${fmt(ar.OD.sph)} + ${fmt(this.fogAmount)} fog). Accommodation relaxed. Starting de-fog in -0.25D steps.`;
-                if (intent.includes('see clearly')) return `Patient sees through fog — accommodation still active. Adding +0.50D more fog to fully relax.`;
+                if (intent.includes('blurry')) return _r(
+                    `Fog confirmed at OD SPH ${fmt(p.right.sph)} (AR ${fmt(ar.OD.sph)} + ${fmt(fogAmt)} fog). Accommodation relaxed.`,
+                    `Fog effective → begin de-fog in -0.25D steps`,
+                    { fogApplied: fogAmt, next: 'right_eye_refraction' });
+                if (intent.includes('see clearly')) return _r(
+                    `Patient sees through ${fmt(fogAmt)} fog — accommodation still active. Adding +0.50D more.`,
+                    'Fog insufficient → add +0.50D', { sph: +0.50 });
                 break;
 
             case 'fogging_left':
-                if (intent.includes('blurry')) return `Fog confirmed at OS SPH ${fmt(p.left.sph)} (AR ${fmt(ar.OS.sph)} + ${fmt(this.fogAmount)} fog). Accommodation relaxed. Starting de-fog.`;
-                if (intent.includes('see clearly')) return `Patient sees through fog — adding +0.50D more fog.`;
+                if (intent.includes('blurry')) return _r(
+                    `Fog confirmed at OS SPH ${fmt(p.left.sph)} (AR ${fmt(ar.OS.sph)} + ${fmt(fogAmt)} fog). Accommodation relaxed.`,
+                    `Fog effective → begin de-fog`, { fogApplied: fogAmt, next: 'left_eye_refraction' });
+                if (intent.includes('see clearly')) return _r(
+                    `Patient sees through fog — adding +0.50D more.`,
+                    'Fog insufficient → add +0.50D', { sph: +0.50 });
                 break;
 
             case 'right_eye_refraction':
             case 'left_eye_refraction': {
                 const eye = this.currentPhase.includes('right') ? 'right' : 'left';
                 const sph = eye === 'right' ? p.right.sph : p.left.sph;
-                const arSph = eye === 'right' ? ar.OD.sph : ar.OS.sph;
-                if (intent === 'Able to read') return `Patient reads this line at SPH ${fmt(sph)}. Advancing to smaller chart.`;
-                if (intent === 'Blurry') return `Blurry at SPH ${fmt(sph)} — adding -0.25D (will become ${fmt(sph - 0.25)}). De-fogging toward optimal.`;
-                if (intent === 'Unable to read') return `Cannot read at SPH ${fmt(sph)} — adding -0.25D. ${this.unableReadCount >= 1 ? 'Second consecutive failure — will transition to JCC astigmatism test.' : 'Continuing de-fog.'}`;
-                if (intent === 'Prev State') return 'Reverting to previous power setting (operator undo).';
+                if (intent === 'Able to read') return _r(
+                    `Patient reads this line at SPH ${fmt(sph)}. Advancing to smaller chart.`,
+                    'Readable → next chart (smaller letters)', { chartAdvance: true });
+                if (intent === 'Blurry') return _r(
+                    `Blurry at SPH ${fmt(sph)} → ${fmt(sph - 0.25)}. De-fogging toward optimal.`,
+                    'Blurry → -0.25D SPH (de-fog step)', { sph: -0.25 });
+                if (intent === 'Unable to read') return _r(
+                    `Cannot read at SPH ${fmt(sph)} → ${fmt(sph - 0.25)}. ${this.unableReadCount >= 1 ? 'Second consecutive failure → JCC.' : 'Continuing.'}`,
+                    `Unable to read (${this.unableReadCount + 1}/2) → -0.25D SPH`,
+                    { sph: -0.25, unableCount: this.unableReadCount + 1, exitToJcc: this.unableReadCount >= 1 });
+                if (intent === 'Prev State') return _r(
+                    'Reverting to previous power setting.',
+                    'Operator undo → restore previous state', { undo: true });
                 break;
             }
 
             case 'jcc_axis_right': case 'jcc_axis_left': {
                 const eye = this.currentPhase.includes('right') ? 'right' : 'left';
                 const axis = eye === 'right' ? p.right.axis : p.left.axis;
-                if (intent === 'AUTO_FLIP') return 'Auto-flipping from Flip 1 to Flip 2 for comparison.';
-                if (intent.includes('Both Same')) return `Axis locked at ${axis}\u00B0 — no difference between flips. Moving to cylinder power test.`;
-                if (intent.includes('Flip 1') && intent.includes('MUCH')) return `Flip 1 much clearer — rotating axis +10\u00B0.`;
-                if (intent.includes('Flip 1') && intent.includes('better')) return `Flip 1 clearer — rotating axis +5\u00B0.`;
-                if (intent.includes('Flip 2') && intent.includes('MUCH')) return `Flip 2 much clearer — rotating axis -10\u00B0.`;
-                if (intent.includes('Flip 2') && intent.includes('better')) return `Flip 2 clearer — rotating axis -5\u00B0.`;
-                if (intent.includes('Repeat')) return 'Repeating flip comparison for confirmation.';
+                if (intent === 'AUTO_FLIP') return _r('Auto-flipping Flip 1 → Flip 2.', 'Timer → auto-flip', { flip: '1→2' });
+                if (intent.includes('Both Same')) return _r(`Axis locked at ${axis}\u00B0. Moving to power test.`, 'Both Same → exit axis, enter power', { next: 'jcc_power' });
+                if (intent.includes('Flip 1') && intent.includes('MUCH')) return _r(`Flip 1 much clearer → axis +10\u00B0.`, 'GAP Axis MUCH → +10\u00B0', { axis: +10 });
+                if (intent.includes('Flip 1') && intent.includes('better')) return _r(`Flip 1 clearer → axis +5\u00B0.`, 'GAP Axis → +5\u00B0', { axis: +5 });
+                if (intent.includes('Flip 2') && intent.includes('MUCH')) return _r(`Flip 2 much clearer → axis -10\u00B0.`, 'RAM Axis MUCH → -10\u00B0', { axis: -10 });
+                if (intent.includes('Flip 2') && intent.includes('better')) return _r(`Flip 2 clearer → axis -5\u00B0.`, 'RAM Axis → -5\u00B0', { axis: -5 });
+                if (intent.includes('Repeat')) return _r('Repeating flip comparison.', 'Repeat requested', { repeat: true });
                 break;
             }
 
             case 'jcc_power_right': case 'jcc_power_left': {
                 const eye = this.currentPhase.includes('right') ? 'right' : 'left';
                 const cyl = eye === 'right' ? p.right.cyl : p.left.cyl;
-                if (intent === 'AUTO_FLIP') return 'Auto-flipping from Flip 1 to Flip 2.';
-                if (intent.includes('Both Same')) return `Cylinder power locked at ${fmt(cyl)}. Moving to duochrome test.`;
-                if (intent.includes('Flip 1') && intent.includes('MUCH')) return `Flip 1 much clearer — increasing CYL by 0.50D.`;
-                if (intent.includes('Flip 1') && intent.includes('better')) return `Flip 1 clearer — increasing CYL by 0.25D.`;
-                if (intent.includes('Flip 2') && intent.includes('MUCH')) return `Flip 2 much clearer — decreasing CYL by 0.50D.`;
-                if (intent.includes('Flip 2') && intent.includes('better')) return `Flip 2 clearer — decreasing CYL by 0.25D.`;
-                if (intent.includes('Repeat')) return 'Repeating flip comparison.';
+                if (intent === 'AUTO_FLIP') return _r('Auto-flipping Flip 1 → Flip 2.', 'Timer → auto-flip', { flip: '1→2' });
+                if (intent.includes('Both Same')) return _r(`CYL locked at ${fmt(cyl)}. Moving to duochrome.`, 'Both Same → exit power, enter duochrome', { next: 'duochrome' });
+                if (intent.includes('Flip 1') && intent.includes('MUCH')) return _r(`Flip 1 much clearer → CYL +0.50D.`, 'GAP Power MUCH → +0.50D CYL', { cyl: +0.50 });
+                if (intent.includes('Flip 1') && intent.includes('better')) return _r(`Flip 1 clearer → CYL +0.25D.`, 'GAP Power → +0.25D CYL', { cyl: +0.25 });
+                if (intent.includes('Flip 2') && intent.includes('MUCH')) return _r(`Flip 2 much clearer → CYL -0.50D.`, 'RAM Power MUCH → -0.50D CYL', { cyl: -0.50 });
+                if (intent.includes('Flip 2') && intent.includes('better')) return _r(`Flip 2 clearer → CYL -0.25D.`, 'RAM Power → -0.25D CYL', { cyl: -0.25 });
+                if (intent.includes('Repeat')) return _r('Repeating flip comparison.', 'Repeat requested', { repeat: true });
                 break;
             }
 
             case 'duochrome_right': case 'duochrome_left': {
                 const eye = this.currentPhase.includes('right') ? 'right' : 'left';
                 const sph = eye === 'right' ? p.right.sph : p.left.sph;
-                if (intent === 'Red') return `Red clearer — under-corrected. Adding -0.25D SPH (RAM: Red Add Minus). SPH ${fmt(sph)} will become ${fmt(sph - 0.25)}.`;
-                if (intent === 'Green') return `Green clearer — over-corrected. Adding +0.25D SPH (GAP: Green Add Plus). SPH ${fmt(sph)} will become ${fmt(sph + 0.25)}.`;
-                if (intent === 'Both Same') return `Red and green equal — spherical power optimized at ${fmt(sph)}.`;
+                if (intent === 'Red') return _r(
+                    `Red clearer — under-corrected. SPH ${fmt(sph)} → ${fmt(sph - 0.25)} (RAM: Red Add Minus).`,
+                    'Red clearer → -0.25D SPH (RAM)', { sph: -0.25 });
+                if (intent === 'Green') return _r(
+                    `Green clearer — over-corrected. SPH ${fmt(sph)} → ${fmt(sph + 0.25)} (GAP: Green Add Plus).`,
+                    'Green clearer → +0.25D SPH (GAP)', { sph: +0.25 });
+                if (intent === 'Both Same') return _r(
+                    `Red and green equal — spherical power optimized at ${fmt(sph)}.`,
+                    'Both Same → SPH endpoint reached', { next: eye === 'right' ? 'fogging_left' : 'binocular_balance' });
                 break;
             }
 
             case 'binocular_balance':
-                if (intent.includes('Top') || intent.includes('Right Eye')) return `Top line (right eye) blurrier — adding +0.25D to left eye to equalize. L SPH ${fmt(p.left.sph)} will become ${fmt(p.left.sph + 0.25)}.`;
-                if (intent.includes('Bottom') || intent.includes('Left Eye')) return `Bottom line (left eye) blurrier — adding +0.25D to right eye. R SPH ${fmt(p.right.sph)} will become ${fmt(p.right.sph + 0.25)}.`;
-                if (intent.includes('same')) return 'Both eyes balanced — exam complete.';
-                if (intent === 'Prev State') return 'Reverting to previous power (operator undo).';
+                if (intent.includes('Top') || intent.includes('Right Eye')) return _r(
+                    `Top (OD) blurrier → +0.25D OS SPH. L SPH ${fmt(p.left.sph)} → ${fmt(p.left.sph + 0.25)}.`,
+                    'Top blurry (OD weaker) → +0.25D OS SPH', { l_sph: +0.25 });
+                if (intent.includes('Bottom') || intent.includes('Left Eye')) return _r(
+                    `Bottom (OS) blurrier → +0.25D OD SPH. R SPH ${fmt(p.right.sph)} → ${fmt(p.right.sph + 0.25)}.`,
+                    'Bottom blurry (OS weaker) → +0.25D OD SPH', { r_sph: +0.25 });
+                if (intent.includes('same')) return _r(
+                    'Both eyes balanced — exam complete.',
+                    'Balanced → generate prescription', { next: 'complete' });
+                if (intent === 'Prev State') return _r(
+                    'Reverting to previous power.',
+                    'Operator undo → restore previous state', { undo: true });
                 break;
         }
 
-        return `${this.currentPhase}: ${intent}`;
+        return _r(`${this.currentPhase}: ${intent}`, 'fallback', null);
     }
 
     // ─── Start Exam ────────────────────────────────
@@ -554,8 +726,10 @@ class RefractionEngine {
         this.currentRow = this._copyRowState();
         this.currentRow.occluder_state = occluder;
 
-        // Add +2.00D fog over current SPH (which is AR value)
-        this.currentRow[sphKey] += this.fogAmount;
+        // Dynamic fog: calculate based on age + AR
+        const fogCalc = this._calculateFogAmount(eye);
+        this.lastFogCalc = fogCalc;
+        this.currentRow[sphKey] += fogCalc.amount;
 
         // Show a readable chart so patient can confirm blur
         this.currentRow.chart_display = this.cv5000.snellenCharts[0];

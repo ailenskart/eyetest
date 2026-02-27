@@ -196,6 +196,7 @@ class EyeTestApp {
         document.getElementById('voiceToggleBtn').addEventListener('click', () => this._toggleVoice());
         document.getElementById('exportBtn').addEventListener('click', () => this._exportSession());
         document.getElementById('takeoverBtn').addEventListener('click', () => this._handleTakeover());
+        this._initRationalePanel();
     }
 
     _bindResultsEvents() {
@@ -464,6 +465,85 @@ class EyeTestApp {
         document.getElementById('rationalePhase').textContent = rationale.phase || '';
         document.getElementById('rationaleWhy').textContent = rationale.why || '';
         document.getElementById('rationaleClinical').textContent = rationale.clinical || '';
+
+        // Operator Guide section
+        const guideSection = document.getElementById('rationaleGuideSection');
+        const guideEl = document.getElementById('rationaleGuide');
+        const expectedEl = document.getElementById('rationaleExpected');
+        if (rationale.guide) {
+            guideSection.classList.remove('hidden');
+            guideEl.textContent = rationale.guide;
+            expectedEl.textContent = rationale.expected || '';
+        } else {
+            guideSection.classList.add('hidden');
+        }
+
+        // Watch For section
+        const watchSection = document.getElementById('rationaleWatchSection');
+        const watchEl = document.getElementById('rationaleWatchFor');
+        if (rationale.watchFor) {
+            watchSection.classList.remove('hidden');
+            watchEl.textContent = rationale.watchFor;
+        } else {
+            watchSection.classList.add('hidden');
+        }
+
+        // Decision Logic section (optometrist validation)
+        const decisionSection = document.getElementById('rationaleDecisionSection');
+        const decisionEl = document.getElementById('rationaleDecisionLogic');
+        if (rationale.decisionLogic) {
+            decisionSection.classList.remove('hidden');
+            decisionEl.textContent = rationale.decisionLogic;
+        } else {
+            decisionSection.classList.add('hidden');
+        }
+
+        // Apply current view mode
+        this._applyRationaleMode();
+    }
+
+    _initRationalePanel() {
+        // Mode toggle: Operator (educational) vs Optometrist (validation)
+        this._rationaleMode = 'operator'; // 'operator' or 'optometrist'
+
+        const modeBtn = document.getElementById('rationaleModeBtn');
+        if (modeBtn) {
+            modeBtn.addEventListener('click', () => {
+                this._rationaleMode = this._rationaleMode === 'operator' ? 'optometrist' : 'operator';
+                modeBtn.textContent = this._rationaleMode === 'operator' ? 'Operator' : 'Optometrist';
+                this._applyRationaleMode();
+            });
+        }
+
+        // Collapsible section toggle
+        document.querySelectorAll('.rationale-section-header').forEach(header => {
+            header.addEventListener('click', () => {
+                const targetId = header.getAttribute('data-toggle');
+                const body = document.getElementById(targetId);
+                if (body) {
+                    body.classList.toggle('collapsed');
+                    header.querySelector('.rationale-chevron').classList.toggle('collapsed');
+                }
+            });
+        });
+    }
+
+    _applyRationaleMode() {
+        const guideSection = document.getElementById('rationaleGuideSection');
+        const watchSection = document.getElementById('rationaleWatchSection');
+        const decisionSection = document.getElementById('rationaleDecisionSection');
+
+        if (this._rationaleMode === 'operator') {
+            // Operator mode: show guide + expected, show watch for, hide decision logic
+            if (guideSection && !guideSection.classList.contains('no-data')) guideSection.classList.remove('hidden');
+            if (watchSection && !watchSection.classList.contains('no-data')) watchSection.classList.remove('hidden');
+            if (decisionSection) decisionSection.classList.add('hidden');
+        } else {
+            // Optometrist mode: show all sections including decision logic
+            if (guideSection && !guideSection.classList.contains('no-data')) guideSection.classList.remove('hidden');
+            if (watchSection && !watchSection.classList.contains('no-data')) watchSection.classList.remove('hidden');
+            if (decisionSection && !decisionSection.classList.contains('no-data')) decisionSection.classList.remove('hidden');
+        }
     }
 
     _updateARReference(arRef) {

@@ -800,6 +800,163 @@ body {
     font-style: italic;
 }
 
+/* Rationale mode toggle */
+.rationale-mode-toggle {
+    margin-left: auto;
+}
+
+.rationale-mode-btn {
+    background: var(--bg-input) !important;
+    border: 1px solid var(--accent-green) !important;
+    color: var(--accent-green) !important;
+    font-size: 0.625rem !important;
+    padding: 0.125rem 0.5rem !important;
+    letter-spacing: 0.3px;
+    text-transform: uppercase;
+    font-weight: 600;
+}
+
+.rationale-mode-btn:hover {
+    background: var(--accent-green) !important;
+    color: #0f1119 !important;
+}
+
+/* Rationale collapsible sections */
+.rationale-section {
+    margin-top: 0.375rem;
+    border-radius: var(--radius-sm);
+    overflow: hidden;
+}
+
+.rationale-section-header {
+    display: flex;
+    align-items: center;
+    gap: 0.375rem;
+    padding: 0.25rem 0.375rem;
+    cursor: pointer;
+    user-select: none;
+    border-radius: var(--radius-sm);
+    transition: background 0.15s;
+}
+
+.rationale-section-header:hover {
+    background: var(--bg-hover);
+}
+
+.rationale-section-icon {
+    font-size: 0.75rem;
+    flex-shrink: 0;
+}
+
+.rationale-section-label {
+    font-size: 0.6875rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+    flex: 1;
+}
+
+.rationale-chevron {
+    font-size: 0.5rem;
+    transition: transform 0.2s ease;
+    color: var(--text-muted);
+}
+
+.rationale-chevron.collapsed {
+    transform: rotate(-90deg);
+}
+
+.rationale-section-body {
+    padding: 0.25rem 0.375rem 0.375rem 1.25rem;
+    font-size: 0.6875rem;
+    line-height: 1.5;
+    color: var(--text-secondary);
+    transition: max-height 0.2s ease, opacity 0.2s ease;
+    max-height: 300px;
+    opacity: 1;
+}
+
+.rationale-section-body.collapsed {
+    max-height: 0;
+    opacity: 0;
+    padding-top: 0;
+    padding-bottom: 0;
+    overflow: hidden;
+}
+
+/* Guide section (blue-tinted) */
+.rationale-guide-section .rationale-section-icon {
+    color: var(--accent-blue);
+}
+
+.rationale-guide-section .rationale-section-label {
+    color: var(--accent-blue);
+}
+
+.rationale-guide {
+    color: var(--text-primary);
+    margin-bottom: 0.375rem;
+}
+
+.rationale-expected-row {
+    display: flex;
+    gap: 0.375rem;
+    align-items: baseline;
+    margin-top: 0.25rem;
+    padding: 0.25rem 0.375rem;
+    background: var(--bg-input);
+    border-radius: var(--radius-sm);
+}
+
+.rationale-expected-label {
+    font-size: 0.625rem;
+    color: var(--accent-green);
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+    flex-shrink: 0;
+}
+
+.rationale-expected-value {
+    font-size: 0.6875rem;
+    color: var(--text-primary);
+}
+
+/* Watch For section (amber-tinted) */
+.rationale-watch-section .rationale-section-icon {
+    color: var(--accent-amber);
+}
+
+.rationale-watch-section .rationale-section-label {
+    color: var(--accent-amber);
+}
+
+.rationale-watch-text {
+    color: var(--accent-amber);
+    opacity: 0.85;
+}
+
+/* Decision Logic section (purple-tinted, optometrist only) */
+.rationale-decision-section .rationale-section-icon {
+    color: var(--accent-purple);
+}
+
+.rationale-decision-section .rationale-section-label {
+    color: var(--accent-purple);
+}
+
+.rationale-decision-text {
+    font-family: 'SF Mono', 'Fira Code', 'Consolas', monospace;
+    font-size: 0.625rem;
+    color: var(--accent-purple);
+    background: var(--bg-input);
+    padding: 0.375rem 0.5rem;
+    border-radius: var(--radius-sm);
+    border-left: 2px solid var(--accent-purple);
+    white-space: pre-wrap;
+    word-break: break-word;
+}
+
 /* Question area */
 .question-area {
     background: var(--bg-secondary);
