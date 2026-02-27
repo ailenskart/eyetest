@@ -3,163 +3,372 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Foropter Scanner Tool</title>
+    <title>AI Eye Test — Subjective Refraction System</title>
     <link rel="stylesheet" href="styles.css">
 </head>
 <body>
-    <div class="app-container">
-        <header class="app-header">
-            <h1>Foropter Scanner Tool</h1>
-            <div class="header-controls">
-                <button id="clearLogs" class="btn btn-secondary">Clear Logs</button>
-                <button id="exportLogs" class="btn btn-primary">Export Logs</button>
-                <label class="toggle-label">
-                    <input type="checkbox" id="autoScroll" checked>
-                    Auto-scroll logs
-                </label>
+    <div id="app" class="app-container">
+
+        <!-- ═══════════════════════════════════════════ -->
+        <!-- SCREEN 1: Patient Intake (Input 1)          -->
+        <!-- ═══════════════════════════════════════════ -->
+        <div id="intakeScreen" class="screen active">
+            <header class="app-header">
+                <h1>AI Eye Test System</h1>
+                <span class="header-badge">CV-5000 Controller</span>
+            </header>
+
+            <main class="intake-main">
+                <div class="intake-card">
+                    <h2>Patient Information</h2>
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label for="patientName">Patient Name</label>
+                            <input type="text" id="patientName" placeholder="Enter name">
+                        </div>
+                        <div class="form-group">
+                            <label for="patientAge">Age</label>
+                            <input type="number" id="patientAge" placeholder="Age" min="5" max="120">
+                        </div>
+                        <div class="form-group">
+                            <label for="patientGender">Gender</label>
+                            <select id="patientGender">
+                                <option value="">Select</option>
+                                <option value="male">Male</option>
+                                <option value="female">Female</option>
+                                <option value="other">Other</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="patientPD">PD (mm)</label>
+                            <input type="number" id="patientPD" value="63" step="0.5" min="50" max="80">
+                        </div>
+                    </div>
+                </div>
+
+                <div class="intake-card">
+                    <h2>Autorefractometer Data (AR)</h2>
+                    <div class="rx-grid">
+                        <div class="rx-column">
+                            <h3>Right Eye (OD)</h3>
+                            <div class="form-group">
+                                <label for="arOdSph">SPH</label>
+                                <input type="number" id="arOdSph" value="0.00" step="0.25" min="-20" max="20">
+                            </div>
+                            <div class="form-group">
+                                <label for="arOdCyl">CYL</label>
+                                <input type="number" id="arOdCyl" value="0.00" step="0.25" min="-10" max="0">
+                            </div>
+                            <div class="form-group">
+                                <label for="arOdAxis">AXIS</label>
+                                <input type="number" id="arOdAxis" value="180" step="1" min="0" max="180">
+                            </div>
+                        </div>
+                        <div class="rx-column">
+                            <h3>Left Eye (OS)</h3>
+                            <div class="form-group">
+                                <label for="arOsSph">SPH</label>
+                                <input type="number" id="arOsSph" value="0.00" step="0.25" min="-20" max="20">
+                            </div>
+                            <div class="form-group">
+                                <label for="arOsCyl">CYL</label>
+                                <input type="number" id="arOsCyl" value="0.00" step="0.25" min="-10" max="0">
+                            </div>
+                            <div class="form-group">
+                                <label for="arOsAxis">AXIS</label>
+                                <input type="number" id="arOsAxis" value="180" step="1" min="0" max="180">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="intake-card">
+                    <h2>Old Prescription (Lensometry)</h2>
+                    <label class="checkbox-label">
+                        <input type="checkbox" id="hasOldRx">
+                        Patient has existing prescription
+                    </label>
+                    <div id="oldRxFields" class="rx-grid hidden">
+                        <div class="rx-column">
+                            <h3>Right Eye (OD)</h3>
+                            <div class="form-group">
+                                <label for="oldOdSph">SPH</label>
+                                <input type="number" id="oldOdSph" value="0.00" step="0.25" min="-20" max="20">
+                            </div>
+                            <div class="form-group">
+                                <label for="oldOdCyl">CYL</label>
+                                <input type="number" id="oldOdCyl" value="0.00" step="0.25" min="-10" max="0">
+                            </div>
+                            <div class="form-group">
+                                <label for="oldOdAxis">AXIS</label>
+                                <input type="number" id="oldOdAxis" value="180" step="1" min="0" max="180">
+                            </div>
+                            <div class="form-group">
+                                <label for="oldOdAdd">ADD</label>
+                                <input type="number" id="oldOdAdd" value="0.00" step="0.25" min="0" max="4">
+                            </div>
+                        </div>
+                        <div class="rx-column">
+                            <h3>Left Eye (OS)</h3>
+                            <div class="form-group">
+                                <label for="oldOsSph">SPH</label>
+                                <input type="number" id="oldOsSph" value="0.00" step="0.25" min="-20" max="20">
+                            </div>
+                            <div class="form-group">
+                                <label for="oldOsCyl">CYL</label>
+                                <input type="number" id="oldOsCyl" value="0.00" step="0.25" min="-10" max="0">
+                            </div>
+                            <div class="form-group">
+                                <label for="oldOsAxis">AXIS</label>
+                                <input type="number" id="oldOsAxis" value="180" step="1" min="0" max="180">
+                            </div>
+                            <div class="form-group">
+                                <label for="oldOsAdd">ADD</label>
+                                <input type="number" id="oldOsAdd" value="0.00" step="0.25" min="0" max="4">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="intake-card">
+                    <h2>Connection Settings</h2>
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label for="cv5000Url">CV-5000 API URL</label>
+                            <input type="text" id="cv5000Url" placeholder="http://localhost:8080" value="">
+                        </div>
+                        <div class="form-group">
+                            <label for="phoroptertId">Phoropter ID</label>
+                            <input type="text" id="phoroptertId" value="phoropter-1">
+                        </div>
+                    </div>
+                    <label class="checkbox-label">
+                        <input type="checkbox" id="simulatedMode" checked>
+                        Simulated Mode (no CV-5000 connection required)
+                    </label>
+                    <label class="checkbox-label">
+                        <input type="checkbox" id="voiceEnabled" checked>
+                        Enable Voice I/O (TTS + Speech Recognition)
+                    </label>
+                </div>
+
+                <button id="startExamBtn" class="btn btn-primary btn-large">Start Eye Examination</button>
+            </main>
+        </div>
+
+        <!-- ═══════════════════════════════════════════ -->
+        <!-- SCREEN 2: Exam Interface                     -->
+        <!-- ═══════════════════════════════════════════ -->
+        <div id="examScreen" class="screen">
+            <header class="exam-header">
+                <div class="header-left">
+                    <h1>AI Eye Test</h1>
+                    <span id="connectionBadge" class="badge badge-warning">Simulated</span>
+                </div>
+                <div class="header-center">
+                    <span id="currentPhaseName" class="phase-label">Phase A: Distance Vision</span>
+                </div>
+                <div class="header-right">
+                    <button id="voiceToggleBtn" class="btn btn-sm" title="Toggle Voice">Voice: ON</button>
+                    <button id="takeoverBtn" class="btn btn-sm btn-warning" title="Manual Takeover">Takeover</button>
+                    <button id="exportBtn" class="btn btn-sm btn-secondary">Export</button>
+                </div>
+            </header>
+
+            <!-- Progress Bar -->
+            <div class="progress-bar-container">
+                <div id="progressBar" class="progress-bar" style="width: 0%"></div>
+                <div id="progressPhases" class="progress-phases">
+                    <!-- Phase dots populated dynamically -->
+                </div>
             </div>
-        </header>
 
-        <main class="main-content">
-            <!-- Foropter Interface Panel -->
-            <section class="foropter-panel">
-                <h2>Foropter Interface</h2>
-
-                <!-- Eye Selection -->
-                <div class="control-group" data-annotation="Eye Selection">
-                    <label>Eye</label>
-                    <div class="btn-group">
-                        <button class="eye-btn active" data-eye="OD">OD (Right)</button>
-                        <button class="eye-btn" data-eye="OS">OS (Left)</button>
-                        <button class="eye-btn" data-eye="OU">OU (Both)</button>
+            <main class="exam-main">
+                <!-- Left: Phoropter State Display -->
+                <aside class="phoropter-panel">
+                    <div class="power-card">
+                        <h3>Right Eye (OD)</h3>
+                        <div class="power-values">
+                            <div class="power-item">
+                                <span class="power-label">SPH</span>
+                                <span id="rSphDisplay" class="power-value">0.00</span>
+                            </div>
+                            <div class="power-item">
+                                <span class="power-label">CYL</span>
+                                <span id="rCylDisplay" class="power-value">0.00</span>
+                            </div>
+                            <div class="power-item">
+                                <span class="power-label">AXIS</span>
+                                <span id="rAxisDisplay" class="power-value">180</span>
+                            </div>
+                            <div class="power-item">
+                                <span class="power-label">ADD</span>
+                                <span id="rAddDisplay" class="power-value">0.00</span>
+                            </div>
+                        </div>
                     </div>
-                </div>
-
-                <!-- Sphere Control -->
-                <div class="control-group" data-annotation="Sphere Power (SPH)">
-                    <label>Sphere (SPH)</label>
-                    <div class="dial-control">
-                        <button class="dial-btn" data-action="decrease" data-target="sphere">−</button>
-                        <input type="number" id="sphere" value="0.00" step="0.25" min="-20" max="20">
-                        <button class="dial-btn" data-action="increase" data-target="sphere">+</button>
-                        <span class="unit">D</span>
+                    <div class="power-card">
+                        <h3>Left Eye (OS)</h3>
+                        <div class="power-values">
+                            <div class="power-item">
+                                <span class="power-label">SPH</span>
+                                <span id="lSphDisplay" class="power-value">0.00</span>
+                            </div>
+                            <div class="power-item">
+                                <span class="power-label">CYL</span>
+                                <span id="lCylDisplay" class="power-value">0.00</span>
+                            </div>
+                            <div class="power-item">
+                                <span class="power-label">AXIS</span>
+                                <span id="lAxisDisplay" class="power-value">180</span>
+                            </div>
+                            <div class="power-item">
+                                <span class="power-label">ADD</span>
+                                <span id="lAddDisplay" class="power-value">0.00</span>
+                            </div>
+                        </div>
                     </div>
-                </div>
-
-                <!-- Cylinder Control -->
-                <div class="control-group" data-annotation="Cylinder Power (CYL)">
-                    <label>Cylinder (CYL)</label>
-                    <div class="dial-control">
-                        <button class="dial-btn" data-action="decrease" data-target="cylinder">−</button>
-                        <input type="number" id="cylinder" value="0.00" step="0.25" min="-10" max="10">
-                        <button class="dial-btn" data-action="increase" data-target="cylinder">+</button>
-                        <span class="unit">D</span>
+                    <div class="info-card">
+                        <div class="info-row">
+                            <span class="info-label">Occluder</span>
+                            <span id="occluderDisplay" class="info-value">BINO</span>
+                        </div>
+                        <div class="info-row">
+                            <span class="info-label">Chart</span>
+                            <span id="chartDisplay" class="info-value">—</span>
+                        </div>
+                        <div class="info-row">
+                            <span class="info-label">VA</span>
+                            <span id="vaDisplay" class="info-value">—</span>
+                        </div>
                     </div>
-                </div>
 
-                <!-- Axis Control -->
-                <div class="control-group" data-annotation="Axis Angle">
-                    <label>Axis</label>
-                    <div class="dial-control">
-                        <button class="dial-btn" data-action="decrease" data-target="axis">−</button>
-                        <input type="number" id="axis" value="0" step="1" min="0" max="180">
-                        <button class="dial-btn" data-action="increase" data-target="axis">+</button>
-                        <span class="unit">°</span>
+                    <!-- Chart selector (only visible in refraction phases) -->
+                    <div id="chartSelector" class="chart-selector hidden">
+                        <h4>Switch Chart</h4>
+                        <div id="chartButtons" class="chart-buttons">
+                            <!-- Populated dynamically -->
+                        </div>
                     </div>
-                </div>
 
-                <!-- Add Power Control -->
-                <div class="control-group" data-annotation="Add Power for Near Vision">
-                    <label>Add Power</label>
-                    <div class="dial-control">
-                        <button class="dial-btn" data-action="decrease" data-target="add">−</button>
-                        <input type="number" id="add" value="0.00" step="0.25" min="0" max="4">
-                        <button class="dial-btn" data-action="increase" data-target="add">+</button>
-                        <span class="unit">D</span>
+                    <!-- Flags -->
+                    <div id="flagsPanel" class="flags-panel hidden">
+                        <h4>Flags</h4>
+                        <div id="flagsList" class="flags-list"></div>
                     </div>
-                </div>
+                </aside>
 
-                <!-- Pupillary Distance -->
-                <div class="control-group" data-annotation="Pupillary Distance (PD)">
-                    <label>PD</label>
-                    <div class="dial-control">
-                        <button class="dial-btn" data-action="decrease" data-target="pd">−</button>
-                        <input type="number" id="pd" value="63" step="0.5" min="50" max="80">
-                        <button class="dial-btn" data-action="increase" data-target="pd">+</button>
-                        <span class="unit">mm</span>
+                <!-- Center: Conversation UI -->
+                <section class="conversation-panel">
+                    <!-- Chat Messages -->
+                    <div id="chatContainer" class="chat-container">
+                        <!-- Messages added dynamically -->
                     </div>
-                </div>
 
-                <!-- Test Selection -->
-                <div class="control-group" data-annotation="Visual Acuity Test Selection">
-                    <label>Test Type</label>
-                    <select id="testType">
-                        <option value="snellen">Snellen Chart</option>
-                        <option value="logmar">LogMAR</option>
-                        <option value="duochrome">Duochrome</option>
-                        <option value="astigmatism">Astigmatism Dial</option>
-                        <option value="cross-cylinder">Cross Cylinder</option>
-                        <option value="binocular">Binocular Balance</option>
-                    </select>
-                </div>
-
-                <!-- Lens Options -->
-                <div class="control-group" data-annotation="Auxiliary Lens Options">
-                    <label>Auxiliary Lens</label>
-                    <div class="checkbox-group">
-                        <label><input type="checkbox" id="redFilter" data-lens="red"> Red Filter</label>
-                        <label><input type="checkbox" id="greenFilter" data-lens="green"> Green Filter</label>
-                        <label><input type="checkbox" id="polarized" data-lens="polarized"> Polarized</label>
-                        <label><input type="checkbox" id="occluder" data-lens="occluder"> Occluder</label>
-                        <label><input type="checkbox" id="pinhole" data-lens="pinhole"> Pinhole</label>
+                    <!-- Auto-flip indicator -->
+                    <div id="autoFlipIndicator" class="auto-flip-indicator hidden">
+                        <div class="flip-progress">
+                            <div id="flipProgressBar" class="flip-progress-bar"></div>
+                        </div>
+                        <span>Auto-flipping in <span id="flipCountdown">2</span>s...</span>
                     </div>
-                </div>
 
-                <!-- Action Buttons -->
-                <div class="control-group" data-annotation="Measurement Actions">
-                    <div class="action-buttons">
-                        <button id="resetValues" class="btn btn-warning">Reset Values</button>
-                        <button id="captureReading" class="btn btn-success">Capture Reading</button>
-                        <button id="switchScreen" class="btn btn-info">Next Screen</button>
+                    <!-- Current question -->
+                    <div id="questionArea" class="question-area">
+                        <p id="currentQuestion" class="current-question">Ready to begin...</p>
                     </div>
-                </div>
-            </section>
 
-            <!-- Right Side Panels -->
-            <div class="right-panels">
-                <!-- Annotations Panel -->
-                <section class="annotations-panel">
-                    <h2>Annotations</h2>
-                    <div id="annotationsList" class="annotations-list">
+                    <!-- Intent buttons -->
+                    <div id="intentButtons" class="intent-buttons">
                         <!-- Populated dynamically -->
                     </div>
-                </section>
 
-                <!-- Log Panel -->
-                <section class="log-panel">
-                    <h2>Event Log <span id="logCount" class="log-count">0</span></h2>
-                    <div id="logContainer" class="log-container">
-                        <!-- Logs populated dynamically -->
+                    <!-- Voice input area -->
+                    <div id="voiceArea" class="voice-area">
+                        <button id="micBtn" class="mic-btn" title="Press to speak">
+                            <svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor">
+                                <path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3z"/>
+                                <path d="M17 11c0 2.76-2.24 5-5 5s-5-2.24-5-5H5c0 3.53 2.61 6.43 6 6.92V21h2v-3.08c3.39-.49 6-3.39 6-6.92h-2z"/>
+                            </svg>
+                        </button>
+                        <div id="voiceTranscript" class="voice-transcript">
+                            <span class="transcript-placeholder">Press mic or click a button</span>
+                        </div>
                     </div>
                 </section>
 
-                <!-- Screen State Panel -->
-                <section class="state-panel">
-                    <h2>Current Screen State</h2>
-                    <pre id="screenState" class="screen-state"></pre>
-                </section>
-            </div>
-        </main>
+                <!-- Right: Event Log -->
+                <aside class="log-panel">
+                    <div class="log-header">
+                        <h3>Session Log</h3>
+                        <span id="logCount" class="log-count">0</span>
+                    </div>
+                    <div id="logContainer" class="log-container">
+                        <!-- Log entries added dynamically -->
+                    </div>
+                </aside>
+            </main>
 
-        <footer class="app-footer">
-            <div class="status-bar">
+            <footer class="exam-footer">
                 <span id="statusMessage">Ready</span>
-                <span id="screenCounter">Screen: 1</span>
-                <span id="timestamp"></span>
-            </div>
-        </footer>
+                <span id="rowCounter">Row: 0</span>
+                <span id="examTimestamp"></span>
+            </footer>
+        </div>
+
+        <!-- ═══════════════════════════════════════════ -->
+        <!-- SCREEN 3: Results / Final Prescription       -->
+        <!-- ═══════════════════════════════════════════ -->
+        <div id="resultsScreen" class="screen">
+            <header class="app-header">
+                <h1>AI Eye Test — Results</h1>
+            </header>
+            <main class="results-main">
+                <div class="rx-result-card">
+                    <h2>Final Prescription</h2>
+                    <div class="rx-result-grid">
+                        <div class="rx-result-column">
+                            <h3>Right Eye (OD)</h3>
+                            <table class="rx-table">
+                                <tr><td>SPH</td><td id="rxRSph">—</td></tr>
+                                <tr><td>CYL</td><td id="rxRCyl">—</td></tr>
+                                <tr><td>AXIS</td><td id="rxRAxis">—</td></tr>
+                                <tr><td>ADD</td><td id="rxRAdd">—</td></tr>
+                            </table>
+                        </div>
+                        <div class="rx-result-column">
+                            <h3>Left Eye (OS)</h3>
+                            <table class="rx-table">
+                                <tr><td>SPH</td><td id="rxLSph">—</td></tr>
+                                <tr><td>CYL</td><td id="rxLCyl">—</td></tr>
+                                <tr><td>AXIS</td><td id="rxLAxis">—</td></tr>
+                                <tr><td>ADD</td><td id="rxLAdd">—</td></tr>
+                            </table>
+                        </div>
+                    </div>
+                    <div class="rx-pd">
+                        <span>PD:</span> <span id="rxPD">—</span> mm
+                    </div>
+                </div>
+
+                <div id="rxFlags" class="rx-flags hidden">
+                    <h3>Flags / Notes</h3>
+                    <ul id="rxFlagsList"></ul>
+                </div>
+
+                <div class="results-actions">
+                    <button id="exportResultsBtn" class="btn btn-primary">Export Full Report (JSON)</button>
+                    <button id="printRxBtn" class="btn btn-secondary">Print Prescription</button>
+                    <button id="newExamBtn" class="btn btn-warning">New Examination</button>
+                </div>
+            </main>
+        </div>
+
     </div>
 
+    <script src="cv5000-protocol.js"></script>
+    <script src="refraction-engine.js"></script>
+    <script src="ai-optometrist.js"></script>
     <script src="app.js"></script>
 </body>
 </html>
