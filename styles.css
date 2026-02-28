@@ -1393,11 +1393,11 @@ body {
 
 .rp-tab {
     flex: 1;
-    padding: 0.375rem 0.5rem;
+    padding: 0.5rem 0.5rem;
     border: none;
     background: transparent;
-    color: var(--text-muted);
-    font-size: 0.6875rem;
+    color: var(--text-secondary);
+    font-size: 0.75rem;
     font-weight: 600;
     text-transform: uppercase;
     letter-spacing: 0.5px;
@@ -1407,19 +1407,23 @@ body {
 }
 
 .rp-tab:hover {
-    color: var(--text-secondary);
+    color: var(--text-primary);
+    background: rgba(255, 255, 255, 0.03);
 }
 
 .rp-tab.active {
     color: var(--accent-cyan);
     border-bottom-color: var(--accent-cyan);
+    background: rgba(34, 211, 238, 0.05);
 }
 
 .rp-tab-content {
     display: none;
     flex-direction: column;
     flex: 1;
-    overflow: hidden;
+    min-height: 0;
+    overflow-y: auto;
+    overflow-x: hidden;
 }
 
 .rp-tab-content.active {
@@ -1645,6 +1649,11 @@ body {
    VIDEO ANALYSIS / SLM PANEL
    ══════════════════════════════════════════ */
 
+/* Ensure all VA sections don't collapse in flex */
+#videoTab > div {
+    flex-shrink: 0;
+}
+
 /* SLM Status */
 .va-slm-status {
     padding: 0.375rem 0.5rem;
@@ -1818,12 +1827,14 @@ body {
 }
 
 .va-select {
+    width: 100%;
     background: var(--bg-input);
     border: 1px solid var(--border-color);
     border-radius: var(--radius-sm);
     color: var(--text-primary);
     padding: 0.25rem 0.375rem;
     font-size: 0.625rem;
+    box-sizing: border-box;
 }
 
 .va-marker-btns {
