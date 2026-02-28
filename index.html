@@ -10,12 +10,89 @@
     <div id="app" class="app-container">
 
         <!-- ═══════════════════════════════════════════ -->
-        <!-- SCREEN 1: Patient Intake (Input 1)          -->
+        <!-- SCREEN 0: Mode Selection                     -->
         <!-- ═══════════════════════════════════════════ -->
-        <div id="intakeScreen" class="screen active">
+        <div id="modeScreen" class="screen active">
             <header class="app-header">
                 <h1>AI Eye Test System</h1>
-                <span class="header-badge">CV-5000 Controller</span>
+                <span class="header-badge">Powered by Lenskart</span>
+            </header>
+            <main class="mode-main">
+                <h2 class="mode-heading">How would you like to use this?</h2>
+                <p class="mode-subheading">Choose the experience that fits your needs</p>
+                <div class="mode-cards">
+                    <!-- Customer Mode -->
+                    <div class="mode-card" data-mode="customer">
+                        <div class="mode-card-icon">
+                            <svg viewBox="0 0 48 48" width="48" height="48" fill="none" stroke="currentColor" stroke-width="2">
+                                <circle cx="24" cy="16" r="8"/>
+                                <path d="M8 42c0-8.84 7.16-16 16-16s16 7.16 16 16"/>
+                            </svg>
+                        </div>
+                        <h3>Customer</h3>
+                        <p class="mode-card-desc">Getting your eyes tested at a Lenskart store? This mode guides you through the exam with friendly instructions and progress tracking.</p>
+                        <ul class="mode-card-features">
+                            <li>Simple, friendly interface</li>
+                            <li>Voice-guided exam</li>
+                            <li>Real-time progress</li>
+                            <li>Comfort checks</li>
+                        </ul>
+                        <button class="btn btn-primary mode-select-btn" data-mode="customer">Start as Customer</button>
+                    </div>
+
+                    <!-- Optometrist Copilot -->
+                    <div class="mode-card" data-mode="copilot">
+                        <div class="mode-card-icon">
+                            <svg viewBox="0 0 48 48" width="48" height="48" fill="none" stroke="currentColor" stroke-width="2">
+                                <rect x="6" y="10" width="36" height="28" rx="3"/>
+                                <circle cx="20" cy="24" r="6"/><circle cx="34" cy="24" r="6"/>
+                                <line x1="26" y1="24" x2="28" y2="24"/>
+                                <line x1="6" y1="24" x2="14" y2="24"/>
+                                <line x1="40" y1="24" x2="42" y2="24"/>
+                            </svg>
+                        </div>
+                        <h3>Optometrist Copilot</h3>
+                        <p class="mode-card-desc">AI assistant for licensed optometrists. Full clinical controls, confidence dashboard, override capability, and exam quality scoring.</p>
+                        <ul class="mode-card-features">
+                            <li>AI confidence dashboard</li>
+                            <li>Quick override controls</li>
+                            <li>Rx comparison view</li>
+                            <li>Quality scoring</li>
+                        </ul>
+                        <button class="btn btn-primary mode-select-btn" data-mode="copilot">Start as Optometrist</button>
+                    </div>
+
+                    <!-- Self Eye Test -->
+                    <div class="mode-card" data-mode="selftest">
+                        <div class="mode-card-icon">
+                            <svg viewBox="0 0 48 48" width="48" height="48" fill="none" stroke="currentColor" stroke-width="2">
+                                <rect x="10" y="4" width="28" height="40" rx="4"/>
+                                <circle cx="24" cy="38" r="2"/>
+                                <path d="M18 20h12M18 24h8"/>
+                            </svg>
+                        </div>
+                        <h3>Self Eye Test</h3>
+                        <p class="mode-card-desc">Test your vision from home. No special equipment needed — just your screen, proper distance, and good lighting.</p>
+                        <ul class="mode-card-features">
+                            <li>No hardware required</li>
+                            <li>Screen calibration</li>
+                            <li>Guided setup</li>
+                            <li>Shareable report</li>
+                        </ul>
+                        <button class="btn btn-primary mode-select-btn" data-mode="selftest">Start Self Test</button>
+                    </div>
+                </div>
+            </main>
+        </div>
+
+        <!-- ═══════════════════════════════════════════ -->
+        <!-- SCREEN 1: Patient Intake (Input 1)          -->
+        <!-- ═══════════════════════════════════════════ -->
+        <div id="intakeScreen" class="screen">
+            <header class="app-header">
+                <h1>AI Eye Test System</h1>
+                <span id="intakeModeBadge" class="header-badge">CV-5000 Controller</span>
+                <button id="backToModeBtn" class="btn btn-sm btn-secondary" style="margin-left:auto">Change Mode</button>
             </header>
 
             <main class="intake-main">
@@ -182,16 +259,70 @@
                 <div class="header-left">
                     <h1>AI Eye Test</h1>
                     <span id="connectionBadge" class="badge badge-warning">Simulated</span>
+                    <span id="examModeBadge" class="badge badge-mode">Customer</span>
                 </div>
                 <div class="header-center">
                     <span id="currentPhaseName" class="phase-label">Phase A: Distance Vision</span>
+                    <!-- Patient-friendly phase name (Customer mode) -->
+                    <span id="friendlyPhaseName" class="phase-label-friendly hidden">Reading the chart</span>
                 </div>
                 <div class="header-right">
                     <button id="voiceToggleBtn" class="btn btn-sm" title="Toggle Voice">Voice: ON</button>
-                    <button id="takeoverBtn" class="btn btn-sm btn-warning" title="Manual Takeover">Takeover</button>
-                    <button id="exportBtn" class="btn btn-sm btn-secondary">Export</button>
+                    <button id="takeoverBtn" class="btn btn-sm btn-warning copilot-only" title="Manual Takeover">Takeover</button>
+                    <button id="exportBtn" class="btn btn-sm btn-secondary copilot-only">Export</button>
+                    <button id="comfortCheckBtn" class="btn btn-sm btn-comfort customer-only" title="Need a break?">Pause</button>
                 </div>
             </header>
+
+            <!-- Patient-friendly progress (Customer + Self-Test modes) -->
+            <div id="patientProgress" class="patient-progress hidden">
+                <div class="patient-progress-steps">
+                    <div class="pp-step completed" data-step="setup">
+                        <div class="pp-dot"></div>
+                        <span>Setup</span>
+                    </div>
+                    <div class="pp-step active" data-step="right">
+                        <div class="pp-dot"></div>
+                        <span>Right Eye</span>
+                    </div>
+                    <div class="pp-step" data-step="left">
+                        <div class="pp-dot"></div>
+                        <span>Left Eye</span>
+                    </div>
+                    <div class="pp-step" data-step="both">
+                        <div class="pp-dot"></div>
+                        <span>Both Eyes</span>
+                    </div>
+                    <div class="pp-step" data-step="done">
+                        <div class="pp-dot"></div>
+                        <span>Done</span>
+                    </div>
+                </div>
+                <div class="pp-timer">
+                    <span id="examTimer">0:00</span>
+                </div>
+            </div>
+
+            <!-- Comfort Check Modal -->
+            <div id="comfortModal" class="comfort-modal hidden">
+                <div class="comfort-modal-content">
+                    <h3>Need a break?</h3>
+                    <p>Take your time. The exam will resume when you're ready.</p>
+                    <div class="comfort-options">
+                        <button class="btn btn-primary comfort-resume-btn">I'm ready, continue</button>
+                        <button class="btn btn-secondary comfort-water-btn">I need a moment</button>
+                        <button class="btn btn-sm btn-warning comfort-stop-btn">End exam early</button>
+                    </div>
+                    <div class="comfort-tips">
+                        <p><strong>Tips for best results:</strong></p>
+                        <ul>
+                            <li>Blink naturally between questions</li>
+                            <li>Don't squint — just answer naturally</li>
+                            <li>It's okay to say "I'm not sure"</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
 
             <!-- Progress Bar -->
             <div class="progress-bar-container">
@@ -314,6 +445,20 @@
 
                 <!-- Center: Conversation UI -->
                 <section class="conversation-panel">
+
+                    <!-- Self-Test: On-screen chart (replaces physical phoropter chart) -->
+                    <div id="selfTestChart" class="self-test-chart hidden">
+                        <div class="st-chart-display">
+                            <div id="stChartContent" class="st-chart-content">
+                                <div class="st-chart-letters" id="stChartLetters">E</div>
+                            </div>
+                            <div class="st-chart-info">
+                                <span id="stChartLabel" class="st-chart-label">Line 1 — 20/200</span>
+                                <span id="stEyeIndicator" class="st-eye-indicator">Testing: Both Eyes</span>
+                            </div>
+                        </div>
+                    </div>
+
                     <!-- Chat Messages -->
                     <div id="chatContainer" class="chat-container">
                         <!-- Messages added dynamically -->
@@ -406,12 +551,117 @@
                     </div>
                 </section>
 
-                <!-- Right: Log + Video Analysis -->
+                <!-- Right: Log + Video Analysis + Copilot Dashboard -->
                 <aside class="log-panel">
                     <!-- Tab switcher -->
                     <div class="right-panel-tabs">
                         <button id="tabLogBtn" class="rp-tab active" data-tab="log">Log</button>
-                        <button id="tabVideoBtn" class="rp-tab" data-tab="video">Video SLM</button>
+                        <button id="tabCopilotBtn" class="rp-tab copilot-only" data-tab="copilot">Copilot</button>
+                        <button id="tabVideoBtn" class="rp-tab copilot-only" data-tab="video">SLM</button>
+                    </div>
+
+                    <!-- Tab: Copilot Dashboard (Optometrist mode only) -->
+                    <div id="copilotTab" class="rp-tab-content">
+                        <!-- AI Confidence -->
+                        <div class="cp-section">
+                            <div class="cp-section-header">
+                                <span class="cp-section-title">AI Confidence</span>
+                                <span id="cpConfidenceScore" class="cp-confidence-badge">—</span>
+                            </div>
+                            <div class="cp-confidence-bar-container">
+                                <div id="cpConfidenceBar" class="cp-confidence-bar" style="width:0%"></div>
+                            </div>
+                            <div id="cpConfidenceDetail" class="cp-confidence-detail">
+                                <span class="cp-detail-muted">Waiting for first response...</span>
+                            </div>
+                        </div>
+
+                        <!-- Rx Comparison (AR vs Current vs Running) -->
+                        <div class="cp-section">
+                            <div class="cp-section-header">
+                                <span class="cp-section-title">Rx Comparison</span>
+                            </div>
+                            <table class="cp-rx-table">
+                                <thead>
+                                    <tr><th></th><th>AR</th><th>Current</th><th>Delta</th></tr>
+                                </thead>
+                                <tbody>
+                                    <tr><td class="cp-rx-label">R SPH</td><td id="cpArRSph">—</td><td id="cpCurRSph">—</td><td id="cpDeltaRSph" class="cp-delta">—</td></tr>
+                                    <tr><td class="cp-rx-label">R CYL</td><td id="cpArRCyl">—</td><td id="cpCurRCyl">—</td><td id="cpDeltaRCyl" class="cp-delta">—</td></tr>
+                                    <tr><td class="cp-rx-label">R AXIS</td><td id="cpArRAxis">—</td><td id="cpCurRAxis">—</td><td id="cpDeltaRAxis" class="cp-delta">—</td></tr>
+                                    <tr><td class="cp-rx-label">L SPH</td><td id="cpArLSph">—</td><td id="cpCurLSph">—</td><td id="cpDeltaLSph" class="cp-delta">—</td></tr>
+                                    <tr><td class="cp-rx-label">L CYL</td><td id="cpArLCyl">—</td><td id="cpCurLCyl">—</td><td id="cpDeltaLCyl" class="cp-delta">—</td></tr>
+                                    <tr><td class="cp-rx-label">L AXIS</td><td id="cpArLAxis">—</td><td id="cpCurLAxis">—</td><td id="cpDeltaLAxis" class="cp-delta">—</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <!-- Quick Override -->
+                        <div class="cp-section">
+                            <div class="cp-section-header">
+                                <span class="cp-section-title">Quick Override</span>
+                            </div>
+                            <div class="cp-override-grid">
+                                <div class="cp-override-row">
+                                    <label class="cp-ovr-label">Eye</label>
+                                    <select id="cpOvrEye" class="cp-ovr-input">
+                                        <option value="right">Right (OD)</option>
+                                        <option value="left">Left (OS)</option>
+                                    </select>
+                                </div>
+                                <div class="cp-override-row">
+                                    <label class="cp-ovr-label">SPH</label>
+                                    <div class="cp-stepper">
+                                        <button class="cp-step-btn" data-param="sph" data-delta="-0.25">-</button>
+                                        <span id="cpOvrSph" class="cp-step-val">0.00</span>
+                                        <button class="cp-step-btn" data-param="sph" data-delta="0.25">+</button>
+                                    </div>
+                                </div>
+                                <div class="cp-override-row">
+                                    <label class="cp-ovr-label">CYL</label>
+                                    <div class="cp-stepper">
+                                        <button class="cp-step-btn" data-param="cyl" data-delta="-0.25">-</button>
+                                        <span id="cpOvrCyl" class="cp-step-val">0.00</span>
+                                        <button class="cp-step-btn" data-param="cyl" data-delta="0.25">+</button>
+                                    </div>
+                                </div>
+                                <div class="cp-override-row">
+                                    <label class="cp-ovr-label">AXIS</label>
+                                    <div class="cp-stepper">
+                                        <button class="cp-step-btn" data-param="axis" data-delta="-5">-</button>
+                                        <span id="cpOvrAxis" class="cp-step-val">180</span>
+                                        <button class="cp-step-btn" data-param="axis" data-delta="5">+</button>
+                                    </div>
+                                </div>
+                                <button id="cpApplyOverride" class="btn btn-sm btn-warning" style="width:100%;margin-top:0.25rem">Apply Override</button>
+                            </div>
+                        </div>
+
+                        <!-- Exam Quality Score -->
+                        <div class="cp-section">
+                            <div class="cp-section-header">
+                                <span class="cp-section-title">Exam Quality</span>
+                                <span id="cpQualityScore" class="cp-quality-badge">—</span>
+                            </div>
+                            <div id="cpQualityDetails" class="cp-quality-details">
+                                <div class="cp-quality-row">
+                                    <span>Responses collected</span>
+                                    <span id="cpQualResponses">0</span>
+                                </div>
+                                <div class="cp-quality-row">
+                                    <span>Overrides used</span>
+                                    <span id="cpQualOverrides">0</span>
+                                </div>
+                                <div class="cp-quality-row">
+                                    <span>Clarifications needed</span>
+                                    <span id="cpQualClarifications">0</span>
+                                </div>
+                                <div class="cp-quality-row">
+                                    <span>Avg confidence</span>
+                                    <span id="cpQualAvgConf">—</span>
+                                </div>
+                            </div>
+                        </div>
                     </div>
 
                     <!-- Tab: Session Log -->
@@ -554,9 +804,34 @@
         <!-- ═══════════════════════════════════════════ -->
         <div id="resultsScreen" class="screen">
             <header class="app-header">
-                <h1>AI Eye Test — Results</h1>
+                <h1 id="resultsTitle">AI Eye Test — Results</h1>
             </header>
             <main class="results-main">
+                <!-- Patient-friendly summary (Customer + Self-Test) -->
+                <div id="patientSummary" class="patient-summary hidden">
+                    <div class="ps-hero">
+                        <div class="ps-checkmark">&#10003;</div>
+                        <h2>Your Eye Test is Complete!</h2>
+                        <p id="psSummaryText" class="ps-summary-text">Your results are ready. Here's what we found.</p>
+                    </div>
+                    <div class="ps-vision-cards">
+                        <div class="ps-vision-card">
+                            <h4>Right Eye</h4>
+                            <div id="psRightVision" class="ps-vision-value">—</div>
+                            <span class="ps-vision-label">Visual Acuity</span>
+                        </div>
+                        <div class="ps-vision-card">
+                            <h4>Left Eye</h4>
+                            <div id="psLeftVision" class="ps-vision-value">—</div>
+                            <span class="ps-vision-label">Visual Acuity</span>
+                        </div>
+                    </div>
+                    <div class="ps-explanation">
+                        <h4>What does this mean?</h4>
+                        <p id="psExplanation">Your prescription details are shown below.</p>
+                    </div>
+                </div>
+
                 <div class="rx-result-card">
                     <h2>Final Prescription</h2>
                     <div class="rx-result-grid">
@@ -584,14 +859,39 @@
                     </div>
                 </div>
 
+                <!-- Copilot: Exam Quality Report -->
+                <div id="rxQualityReport" class="rx-quality-report copilot-only hidden">
+                    <h3>Exam Quality Report</h3>
+                    <div class="rx-quality-grid">
+                        <div class="rx-quality-item">
+                            <span class="rx-q-label">Overall Score</span>
+                            <span id="rxQualScore" class="rx-q-value">—</span>
+                        </div>
+                        <div class="rx-quality-item">
+                            <span class="rx-q-label">Total Steps</span>
+                            <span id="rxQualSteps" class="rx-q-value">—</span>
+                        </div>
+                        <div class="rx-quality-item">
+                            <span class="rx-q-label">Avg Confidence</span>
+                            <span id="rxQualConf" class="rx-q-value">—</span>
+                        </div>
+                        <div class="rx-quality-item">
+                            <span class="rx-q-label">Duration</span>
+                            <span id="rxQualDuration" class="rx-q-value">—</span>
+                        </div>
+                    </div>
+                </div>
+
                 <div id="rxFlags" class="rx-flags hidden">
                     <h3>Flags / Notes</h3>
                     <ul id="rxFlagsList"></ul>
                 </div>
 
                 <div class="results-actions">
-                    <button id="exportResultsBtn" class="btn btn-primary">Export Full Report (JSON)</button>
+                    <button id="exportResultsBtn" class="btn btn-primary copilot-only">Export Full Report (JSON)</button>
+                    <button id="shareResultsBtn" class="btn btn-primary selftest-only hidden">Share with Optometrist</button>
                     <button id="printRxBtn" class="btn btn-secondary">Print Prescription</button>
+                    <button id="bookApptBtn" class="btn btn-accent selftest-only hidden">Book Appointment at Lenskart</button>
                     <button id="newExamBtn" class="btn btn-warning">New Examination</button>
                 </div>
             </main>
@@ -604,6 +904,7 @@
     <script src="ai-optometrist.js"></script>
     <script src="optom-slm.js"></script>
     <script src="video-analyzer.js"></script>
+    <script src="mode-manager.js"></script>
     <script src="app.js"></script>
 </body>
 </html>

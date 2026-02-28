@@ -18,9 +18,10 @@ class EyeTestApp {
         this.cv5000 = null;
         this.engine = null;
         this.ai = null;
+        this.mode = new ModeManager();
 
         // ── UI state ──
-        this.currentScreen = 'intake';
+        this.currentScreen = 'mode';
         this.autoFlipTimer = null;
         this.logEntries = [];
         this.voiceEnabled = true;
@@ -30,10 +31,13 @@ class EyeTestApp {
 
     _init() {
         document.addEventListener('DOMContentLoaded', () => {
+            this._bindModeEvents();
             this._bindIntakeEvents();
             this._bindExamEvents();
             this._bindResultsEvents();
             this._initVideoPanel();
+            this._initComfortCheck();
+            this._initCopilotControls();
             this._updateTimestamp();
             setInterval(() => this._updateTimestamp(), 1000);
         });
@@ -44,6 +48,95 @@ class EyeTestApp {
                 this.cv5000.destroy();
             }
         });
+    }
+
+    // ════════════════════════════════════════════
+    // MODE SELECTION
+    // ════════════════════════════════════════════
+    _bindModeEvents() {
+        document.querySelectorAll('.mode-select-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const selectedMode = btn.dataset.mode;
+                this.mode.setMode(selectedMode);
+                this._showScreen('intake');
+            });
+        });
+
+        const backBtn = document.getElementById('backToModeBtn');
+        if (backBtn) {
+            backBtn.addEventListener('click', () => this._showScreen('mode'));
+        }
+    }
+
+    _initComfortCheck() {
+        const comfortBtn = document.getElementById('comfortCheckBtn');
+        if (comfortBtn) {
+            comfortBtn.addEventListener('click', () => this.mode.showComfortCheck());
+        }
+
+        document.querySelectorAll('.comfort-resume-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                this.mode.hideComfortCheck();
+            });
+        });
+        document.querySelectorAll('.comfort-water-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                if (this.ai) this.ai.speak('Take your time. Press continue when you\'re ready.');
+            });
+        });
+        document.querySelectorAll('.comfort-stop-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                this.mode.hideComfortCheck();
+                if (this.engine) {
+                    const rx = this.engine.getFinalRx();
+                    this._onExamComplete(rx);
+                }
+            });
+        });
+    }
+
+    _initCopilotControls() {
+        // Override steppers
+        document.querySelectorAll('.cp-step-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const param = btn.dataset.param;
+                const delta = parseFloat(btn.dataset.delta);
+                const valEl = document.getElementById(`cpOvr${param.charAt(0).toUpperCase() + param.slice(1)}`);
+                if (valEl) {
+                    let val = parseFloat(valEl.textContent) || 0;
+                    val += delta;
+                    if (param === 'axis') val = ((val % 180) + 180) % 180 || 180;
+                    valEl.textContent = param === 'axis' ? val : (val >= 0 ? '+' : '') + val.toFixed(2);
+                }
+            });
+        });
+
+        // Apply override
+        const applyBtn = document.getElementById('cpApplyOverride');
+        if (applyBtn) {
+            applyBtn.addEventListener('click', () => this._applyCopilotOverride());
+        }
+    }
+
+    _applyCopilotOverride() {
+        if (!this.engine || !this.cv5000) return;
+
+        const eye = document.getElementById('cpOvrEye').value;
+        const sph = parseFloat(document.getElementById('cpOvrSph').textContent) || 0;
+        const cyl = parseFloat(document.getElementById('cpOvrCyl').textContent) || 0;
+        const axis = parseInt(document.getElementById('cpOvrAxis').textContent) || 180;
+
+        const state = this.cv5000.state;
+        if (eye === 'right') {
+            state.r_sph = sph; state.r_cyl = cyl; state.r_axis = axis;
+        } else {
+            state.l_sph = sph; state.l_cyl = cyl; state.l_axis = axis;
+        }
+
+        this.cv5000.setPower(state.r_sph, state.r_cyl, state.r_axis, state.l_sph, state.l_cyl, state.l_axis);
+        this._updatePowerDisplay({ OD: { sph: state.r_sph, cyl: state.r_cyl, axis: state.r_axis }, OS: { sph: state.l_sph, cyl: state.l_cyl, axis: state.l_axis } });
+        this.mode.recordOverride();
+        this._log('override', `Manual override: ${eye} → SPH:${sph} CYL:${cyl} AXIS:${axis}`);
     }
 
     // ════════════════════════════════════════════
@@ -176,13 +269,35 @@ class EyeTestApp {
         this._showScreen('exam');
         this._updateConnectionBadge(simulated);
 
+        // ── Start mode-aware features ──
+        this.mode.startExamTimer();
+        this._patientData = patientData; // Store for later use in results
+
         // ── Start ──
-        this._log('system', `Exam started for ${patientData.name || 'Patient'}`);
+        this._log('system', `Exam started for ${patientData.name || 'Patient'} [${this.mode.currentMode} mode]`);
         this._log('system', `AR: OD ${patientData.autorefraction.OD.sph}/${patientData.autorefraction.OD.cyl}x${patientData.autorefraction.OD.axis} | OS ${patientData.autorefraction.OS.sph}/${patientData.autorefraction.OS.cyl}x${patientData.autorefraction.OS.axis}`);
+
+        // Initialize copilot Rx comparison
+        if (this.mode.isMode('copilot')) {
+            this.mode.updateRxComparison(patientData.autorefraction, {
+                OD: { sph: 0, cyl: 0, axis: 180 },
+                OS: { sph: 0, cyl: 0, axis: 180 },
+            });
+        }
 
         // Greet patient
         if (this.voiceEnabled) {
-            await this.ai.greetPatient(patientData.name);
+            const greetings = {
+                customer: patientData.name ? `Hello ${patientData.name}, welcome! I'll guide you through your eye test step by step. Just answer my questions naturally.` : 'Welcome! I\'ll guide you through your eye test. Just answer my questions naturally.',
+                copilot: null, // Use default
+                selftest: patientData.name ? `Hello ${patientData.name}! Let's check your vision. Please sit at arm's length from the screen in a well-lit room.` : 'Hello! Let\'s check your vision. Please sit at arm\'s length from the screen in a well-lit room.',
+            };
+            const greeting = greetings[this.mode.currentMode];
+            if (greeting) {
+                await this.ai.speak(greeting);
+            } else {
+                await this.ai.greetPatient(patientData.name);
+            }
         }
 
         const response = await this.engine.startExam();
@@ -204,6 +319,48 @@ class EyeTestApp {
         document.getElementById('exportResultsBtn').addEventListener('click', () => this._exportFullReport());
         document.getElementById('printRxBtn').addEventListener('click', () => window.print());
         document.getElementById('newExamBtn').addEventListener('click', () => location.reload());
+
+        // Self-test: shareable report
+        const shareBtn = document.getElementById('shareResultsBtn');
+        if (shareBtn) {
+            shareBtn.addEventListener('click', () => this._shareReport());
+        }
+
+        // Self-test: book appointment
+        const bookBtn = document.getElementById('bookApptBtn');
+        if (bookBtn) {
+            bookBtn.addEventListener('click', () => {
+                window.open('https://www.lenskart.com/stores-near-me', '_blank');
+            });
+        }
+    }
+
+    _shareReport() {
+        if (!this.engine) return;
+        const rx = this.engine.getFinalRx();
+        const report = this.mode.generateShareableReport(
+            this._patientData || {},
+            { OD: rx?.right, OS: rx?.left },
+            rx?.flags
+        );
+        // Copy to clipboard
+        navigator.clipboard.writeText(report).then(() => {
+            const shareBtn = document.getElementById('shareResultsBtn');
+            if (shareBtn) {
+                const orig = shareBtn.textContent;
+                shareBtn.textContent = 'Copied to clipboard!';
+                setTimeout(() => { shareBtn.textContent = orig; }, 2000);
+            }
+        }).catch(() => {
+            // Fallback: download as file
+            const blob = new Blob([report], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'vision-report.json';
+            a.click();
+            URL.revokeObjectURL(url);
+        });
     }
 
     // ════════════════════════════════════════════
@@ -523,13 +680,26 @@ class EyeTestApp {
             return;
         }
 
-        // Show question in chat
-        if (response.question) {
-            this._addChatMessage('system', response.question);
-            document.getElementById('currentQuestion').textContent = response.question;
+        // Update self-test chart display
+        if (this.mode.isMode('selftest') && response.chartIndex !== undefined) {
+            const occluder = response.occluder || this.cv5000?.state?.aux_lens || 'BINO';
+            this.mode.updateSelfTestChart(response.chartIndex, occluder);
+        }
+        if (this.mode.isMode('selftest') && response.phaseId) {
+            if (response.phaseId.includes('duochrome')) this.mode.showDuochromeChart();
+            else if (response.phaseId === 'binocular_balance') this.mode.showBinocularChart();
         }
 
-        // Render intent buttons
+        // Show question in chat (use friendly version for customer/selftest)
+        if (response.question) {
+            const displayQuestion = (this.mode.isMode('customer') || this.mode.isMode('selftest'))
+                ? (this.mode.friendlyQuestions[response.phaseId] || response.question)
+                : response.question;
+            this._addChatMessage('system', displayQuestion);
+            document.getElementById('currentQuestion').textContent = displayQuestion;
+        }
+
+        // Render intent buttons (with friendly labels for customer/selftest)
         this._renderIntentButtons(response.intents || []);
 
         // Auto-flip handling
@@ -555,7 +725,7 @@ class EyeTestApp {
         intents.forEach(intent => {
             const btn = document.createElement('button');
             btn.className = 'intent-btn';
-            btn.textContent = intent;
+            btn.textContent = this.mode.translateIntentLabel(intent);
             btn.addEventListener('click', () => this._handleIntentClick(intent));
             container.appendChild(btn);
         });
@@ -565,8 +735,12 @@ class EyeTestApp {
         this._clearAutoFlip();
 
         // Add patient response to chat
-        this._addChatMessage('patient', intent);
+        const displayLabel = this.mode.translateIntentLabel(intent);
+        this._addChatMessage('patient', displayLabel);
         this._log('intent', `Patient: "${intent}"`);
+
+        // Update copilot confidence (button clicks = 100% confidence)
+        this.mode.updateConfidence(1.0, intent, null);
 
         // Process through AI (for logging)
         if (this.ai) {
@@ -587,16 +761,20 @@ class EyeTestApp {
         if (result.action === 'proceed' && result.intent) {
             this._addChatMessage('patient', `"${transcript}" → ${result.intent}`);
             this._log('voice', `Classified: "${transcript}" → ${result.intent} (${(result.confidence * 100).toFixed(0)}%)`);
+            this.mode.updateConfidence(result.confidence, result.intent, transcript);
 
             const response = await this.engine.processResponse(result.intent);
             await this._handleEngineResponse(response);
         } else if (result.action === 'confirm') {
             this._addChatMessage('system', result.message);
+            this.mode.updateConfidence(result.confidence, result.intent, transcript);
             // Show confirm/deny buttons
             this._renderIntentButtons([result.intent, 'Repeat question']);
         } else if (result.action === 'clarify') {
             this._addChatMessage('system', result.message);
             this._log('voice', `Low confidence: "${transcript}" (${(result.confidence * 100).toFixed(0)}%)`);
+            this.mode.updateConfidence(result.confidence, null, transcript);
+            this.mode.recordClarification();
             if (this.voiceEnabled) {
                 await this.ai.speak(result.message);
             }
@@ -657,7 +835,7 @@ class EyeTestApp {
     // ════════════════════════════════════════════
     _showScreen(name) {
         document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
-        const screenMap = { intake: 'intakeScreen', exam: 'examScreen', results: 'resultsScreen' };
+        const screenMap = { mode: 'modeScreen', intake: 'intakeScreen', exam: 'examScreen', results: 'resultsScreen' };
         const el = document.getElementById(screenMap[name]);
         if (el) el.classList.add('active');
         this.currentScreen = name;
@@ -1115,14 +1293,30 @@ class EyeTestApp {
         this._addPhaseChangeMessage(progress.phaseName);
         this._log('phase', `→ ${progress.phaseName}`);
 
+        // Update patient-friendly progress
+        this.mode.updatePhaseProgress(progress.phaseId || progress.phaseName);
+
         if (this.voiceEnabled && this.ai) {
             this.ai.announcePhase(progress.phaseName);
+        }
+
+        // Update copilot Rx comparison on phase change
+        if (this.mode.isMode('copilot') && this.engine && this._patientData) {
+            const power = this.engine.getPower();
+            if (power) {
+                this.mode.updateRxComparison(this._patientData.autorefraction, {
+                    OD: { sph: power.r_sph || 0, cyl: power.r_cyl || 0, axis: power.r_axis || 180 },
+                    OS: { sph: power.l_sph || 0, cyl: power.l_cyl || 0, axis: power.l_axis || 180 },
+                });
+            }
         }
     }
 
     _onExamComplete(rx) {
         this._clearAutoFlip();
         this._log('system', 'Examination complete');
+        this.mode.stopExamTimer();
+        this.mode.markExamComplete();
 
         // Release device
         if (this.cv5000 && this.cv5000.connectionStatus === 'acquired') {
@@ -1132,8 +1326,25 @@ class EyeTestApp {
 
         if (rx) {
             this._showResults(rx);
+
+            // Patient-friendly results
+            const rxForPatient = {
+                OD: rx.right || { sph: 0, cyl: 0, axis: 180 },
+                OS: rx.left || { sph: 0, cyl: 0, axis: 180 },
+            };
+            this.mode.showPatientResults(rxForPatient, rx.flags);
+
+            // Copilot quality report
+            if (this.mode.isMode('copilot')) {
+                this.mode.showCopilotResults(this.mode.getQualityReport());
+            }
+
             if (this.voiceEnabled && this.ai) {
-                this.ai.announcePrescription(rx);
+                if (this.mode.isMode('customer') || this.mode.isMode('selftest')) {
+                    this.ai.speak('Your eye test is complete! Your results are now on screen.');
+                } else {
+                    this.ai.announcePrescription(rx);
+                }
             }
         }
     }
