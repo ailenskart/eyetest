@@ -254,6 +254,13 @@ class EyeTestApp {
             }
         }
 
+        // Always reset at exam start so machine + engine start from same baseline.
+        const resetResult = await this.cv5000.resetPhoropter();
+        if (!simulated && (resetResult?.status === 'FAILED' || resetResult?.success === false)) {
+            alert(`Cannot reset phoropter: ${resetResult?.reason || 'Unknown error'}`);
+            return;
+        }
+
         this.engine = new RefractionEngine(this.cv5000);
         this.engine.setPatientData(patientData);
 

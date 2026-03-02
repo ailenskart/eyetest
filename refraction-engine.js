@@ -644,10 +644,13 @@ class RefractionEngine {
             this.currentRow.l_cyl = ar.OS.cyl;
             this.currentRow.l_axis = ar.OS.axis;
 
-            await this.cv5000.setPower({
+            // Send AR load with explicit previous state to avoid device drift.
+            await this.cv5000.setPowerWithPrevState({
+                prev_r_sph: 0.00, prev_r_cyl: 0.00, prev_r_axis: 180,
+                prev_l_sph: 0.00, prev_l_cyl: 0.00, prev_l_axis: 180,
                 r_sph: ar.OD.sph, r_cyl: ar.OD.cyl, r_axis: ar.OD.axis,
                 l_sph: ar.OS.sph, l_cyl: ar.OS.cyl, l_axis: ar.OS.axis,
-                occluder: 'BINO',
+                prev_aux_lens: 'BINO', aux_lens: 'BINO',
             });
         }
 
@@ -721,8 +724,10 @@ class RefractionEngine {
         this.currentPhase = eye === 'right' ? 'fogging_right' : 'fogging_left';
 
         const occluder = eye === 'right' ? 'Left_Occluded' : 'Right_Occluded';
+        const auxLens = eye === 'right' ? 'AuxLensL' : 'AuxLensR';
         const sphKey = eye === 'right' ? 'r_sph' : 'l_sph';
 
+        const prevRow = this._copyRowState();
         this.currentRow = this._copyRowState();
         this.currentRow.occluder_state = occluder;
 
@@ -734,10 +739,18 @@ class RefractionEngine {
         // Show a readable chart so patient can confirm blur
         this.currentRow.chart_display = this.cv5000.snellenCharts[0];
 
-        await this.cv5000.setPower({
+        const prevAuxLens = prevRow.occluder_state === 'Left_Occluded'
+            ? 'AuxLensL'
+            : prevRow.occluder_state === 'Right_Occluded'
+                ? 'AuxLensR'
+                : 'BINO';
+
+        await this.cv5000.setPowerWithPrevState({
+            prev_r_sph: prevRow.r_sph, prev_r_cyl: prevRow.r_cyl, prev_r_axis: prevRow.r_axis,
+            prev_l_sph: prevRow.l_sph, prev_l_cyl: prevRow.l_cyl, prev_l_axis: prevRow.l_axis,
             r_sph: this.currentRow.r_sph, r_cyl: this.currentRow.r_cyl, r_axis: this.currentRow.r_axis,
             l_sph: this.currentRow.l_sph, l_cyl: this.currentRow.l_cyl, l_axis: this.currentRow.l_axis,
-            occluder,
+            prev_aux_lens: prevAuxLens, aux_lens: auxLens,
         });
         await this.cv5000.setChart(this.cv5000.snellenCharts[0]);
 
