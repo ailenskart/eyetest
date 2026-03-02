@@ -149,35 +149,45 @@ class EyeTestApp {
         });
         document.getElementById('loadDevicesBtn').addEventListener('click', () => this._loadDevices());
         document.getElementById('simulatedMode').addEventListener('change', (e) => {
-            // When unchecked, auto-load devices
             if (!e.target.checked) this._loadDevices();
+            else document.getElementById('deviceList').innerHTML = '<span class="device-placeholder">Enable real phoropter mode to see devices</span>';
         });
+        document.getElementById('showAllDevices')?.addEventListener('change', () => this._loadDevices());
     }
 
     async _loadDevices() {
-        const baseUrl = document.getElementById('cv5000Url').value;
+        const baseUrl = document.getElementById('cv5000Url').value.trim();
         const listEl = document.getElementById('deviceList');
-        listEl.innerHTML = '<span class="device-placeholder">Loading...</span>';
+        const showAll = document.getElementById('showAllDevices')?.checked ?? true;
+        listEl.innerHTML = '<span class="device-placeholder">Loading phoropters...</span>';
 
         const tempProto = new CV5000Protocol({ baseUrl, simulatedMode: false });
         try {
-            const devices = await tempProto.listDevices(true);
-            if (!devices || !devices.length) {
-                listEl.innerHTML = '<span class="device-placeholder">No devices found</span>';
+            const data = await tempProto.listDevices(showAll);
+            const arr = Array.isArray(data) ? data : (data.devices || []);
+            if (!arr.length) {
+                listEl.innerHTML = '<span class="device-placeholder">No phoropters found. Check the broker URL or try "Show all devices".</span>';
                 return;
             }
 
             listEl.innerHTML = '';
-            const arr = Array.isArray(devices) ? devices : (devices.devices || []);
             arr.forEach(d => {
                 const id = d.id || d.device_id || d.phoropter_id || '';
+                const name = d.name || id;
+                const store = d.store || '';
                 const status = (d.status || 'UNKNOWN').toUpperCase();
                 const statusClass = status === 'AVAILABLE' ? 'available' : status === 'CONNECTED' ? 'connected' : 'offline';
+                const isAvailable = status === 'AVAILABLE';
 
                 const item = document.createElement('div');
-                item.className = 'device-item';
+                item.className = `device-item ${isAvailable ? 'device-available' : ''}`;
+                item.dataset.deviceId = id;
                 item.innerHTML = `
-                    <span class="device-id">${id}</span>
+                    <div class="device-item-main">
+                        <span class="device-name">${name}</span>
+                        ${store ? `<span class="device-store">${store}</span>` : ''}
+                        <span class="device-id">${id}</span>
+                    </div>
                     <span class="device-status ${statusClass}">${status}</span>
                 `;
                 item.addEventListener('click', () => {
@@ -839,6 +849,12 @@ class EyeTestApp {
         const el = document.getElementById(screenMap[name]);
         if (el) el.classList.add('active');
         this.currentScreen = name;
+        if (name === 'intake') {
+            const baseUrl = document.getElementById('cv5000Url')?.value?.trim() || '';
+            const dash = document.getElementById('dashboardLink');
+            if (dash && baseUrl) dash.href = baseUrl.replace(/\/$/, '') + '/dashboard';
+            if (!document.getElementById('simulatedMode')?.checked) this._loadDevices();
+        }
     }
 
     _updateConnectionBadge(simulated) {

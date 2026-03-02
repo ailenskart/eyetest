@@ -221,19 +221,25 @@
                     </div>
                     <div class="device-selector">
                         <div class="device-selector-header">
-                            <label>Select Phoropter Device</label>
-                            <button id="loadDevicesBtn" class="btn btn-sm btn-secondary">Load Devices</button>
+                            <label>Available Phoropters</label>
+                            <div class="device-selector-actions">
+                                <label class="device-checkbox">
+                                    <input type="checkbox" id="showAllDevices">
+                                    Show all (incl. connected)
+                                </label>
+                                <button id="loadDevicesBtn" class="btn btn-sm btn-secondary">Refresh</button>
+                            </div>
                         </div>
                         <div id="deviceList" class="device-list">
-                            <span class="device-placeholder">Click "Load Devices" to fetch available phoropters, or enter ID manually</span>
+                            <span class="device-placeholder">Phoropters load automatically. Choose one below or click Refresh.</span>
                         </div>
-                        <div class="form-group" style="margin-top:0.5rem">
-                            <label for="phoroptertId">Phoropter ID (manual)</label>
-                            <input type="text" id="phoroptertId" placeholder="e.g. lkst1782-1" value="">
+                        <div class="form-group device-selected-row" style="margin-top:0.5rem">
+                            <label for="phoroptertId">Selected Phoropter</label>
+                            <input type="text" id="phoroptertId" placeholder="Choose a device above or enter ID manually" value="">
                         </div>
                     </div>
                     <label class="checkbox-label">
-                        <input type="checkbox" id="simulatedMode" checked>
+                        <input type="checkbox" id="simulatedMode">
                         Simulated Mode (no phoropter connection required)
                     </label>
                     <label class="checkbox-label">
@@ -241,7 +247,7 @@
                         Enable Voice I/O (TTS + Speech Recognition)
                     </label>
                     <div class="dashboard-link">
-                        <a href="https://rajasthan-royals.preprod.lenskart.com/dashboard" target="_blank" rel="noopener">
+                        <a id="dashboardLink" href="https://rajasthan-royals.preprod.lenskart.com/dashboard" target="_blank" rel="noopener">
                             Open Phoropter Dashboard
                         </a>
                     </div>
