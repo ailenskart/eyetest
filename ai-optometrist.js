@@ -252,6 +252,14 @@ class AIOptometrist {
 
         // ── Phase-specific keyword matching ──
 
+        // Fogging phases
+        if (intentLower.includes("it's blurry")) {
+            if (this._matchesAny(text, ['blurry', 'blur', 'yes', 'blurred', 'can\'t see', 'foggy', 'everything blurry', 'yes blurry', 'it is blurry'])) return 0.9;
+        }
+        if (intentLower.includes('can still see clearly')) {
+            if (this._matchesAny(text, ['clear', 'can see', 'still see', 'not blurry', 'i can read', 'sharp', 'can still see', 'no it\'s clear'])) return 0.9;
+        }
+
         // Refraction phases
         if (intentLower.includes('able to read')) {
             if (this._matchesAny(text, ['able to read', 'can read', 'i can see', 'yes', 'clear', 'readable', 'can see it', 'yes i can'])) return 0.9;
