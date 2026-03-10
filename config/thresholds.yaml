@@ -1,0 +1,55 @@
+# Thresholds and Configuration Parameters
+
+# Sphere refinement
+sphere_refinement:
+  unable_read_threshold: 2  # Number of "Unable to read" to exit sphere phase
+  sph_change_tolerance: 0.001  # Minimum SPH change to count as adjustment
+
+# Cylinder refinement
+cylinder_refinement:
+  axis_increment: 5  # Degrees to adjust per flip
+  power_increment: 0.25  # Diopters to adjust per flip
+  zero_cylinder_threshold: 0.001  # Treat as 0.00 if below this
+
+# Snellen progression
+snellen:
+  metric_to_imperial:
+    60: 200
+    30: 100
+    20: 70
+    15: 50
+    12: 40
+    9: 30
+    7.5: 25
+    6: 20
+    5: 16
+    4: 13
+    3: 10
+  baseline_threshold: 20  # 20/20 is normal vision
+
+# Confidence detection
+confidence:
+  window_rows: 3  # Number of rows to look ahead for repetition
+  confused_label: "Confused"
+  confident_label: "Confident"
+
+# Phase timing (optional, for future use)
+timing:
+  max_rows_per_phase:
+    distance_vision: 20
+    right_eye_refraction: 30
+    left_eye_refraction: 30
+    jcc_axis_right: 15
+    jcc_power_right: 15
+    jcc_axis_left: 15
+    jcc_power_left: 15
+    duochrome_right: 5
+    duochrome_left: 5
+    binocular_balance: 20
+
+# Logging
+logging:
+  level: "INFO"  # DEBUG, INFO, WARNING, ERROR
+  output_dir: "logs"
+  enable_phase_trace: true
+  enable_decision_trace: true

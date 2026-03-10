@@ -1,0 +1,2008 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Eye Test Engine - Interactive Session</title>
+    <link rel="icon" type="image/svg+xml" href="favicon.svg">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 10px;
+        }
+
+        .container {
+            max-width: none;
+            width: 100%;
+            margin: 0;
+            padding: 0 10px;
+        }
+
+        .header {
+            background: white;
+            border-radius: 15px;
+            padding: 15px 25px;
+            margin-bottom: 15px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+        }
+
+        .header h1 {
+            color: #667eea;
+            font-size: 1.8em;
+            margin-bottom: 5px;
+        }
+
+        .header p {
+            color: #666;
+            font-size: 0.95em;
+        }
+
+        .header-controls {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: 20px;
+            padding-top: 20px;
+            border-top: 1px solid #e0e0e0;
+        }
+
+        .phase-jump {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .phase-jump label {
+            color: #666;
+            font-weight: 600;
+        }
+
+        .phase-jump select {
+            padding: 8px 15px;
+            border: 2px solid #667eea;
+            border-radius: 8px;
+            background: white;
+            color: #333;
+            font-size: 1em;
+            cursor: pointer;
+            min-width: 300px;
+        }
+
+        .phase-jump select:hover {
+            border-color: #764ba2;
+        }
+
+        .phase-jump button {
+            padding: 8px 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: transform 0.2s;
+        }
+
+        .phase-jump button:hover {
+            transform: translateY(-2px);
+        }
+
+        .phase-jump button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .ar-power-btn {
+            padding: 8px 20px;
+            background: #4caf50;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: transform 0.2s;
+        }
+
+        .ar-power-btn:hover {
+            transform: translateY(-2px);
+        }
+
+        .compare-state-btn {
+            padding: 8px 16px;
+            background: #ff9800;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: transform 0.2s;
+        }
+
+        .compare-state-btn:hover {
+            transform: translateY(-2px);
+        }
+
+        .power-apply-btn {
+            padding: 6px 16px;
+            background: #f5f5f5;
+            color: #333;
+            border: 2px solid #ddd;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 0.9em;
+            transition: all 0.2s;
+        }
+
+        .power-apply-btn:hover:not(:disabled) {
+            background: #e3f2fd;
+            border-color: #667eea;
+            transform: translateY(-1px);
+        }
+
+        .power-apply-btn:disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+        }
+
+        .power-apply-btn.active {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border-color: #667eea;
+        }
+
+        .modal-backdrop {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.4);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+        }
+
+        .modal-backdrop.active {
+            display: flex;
+        }
+
+        .modal {
+            background: white;
+            border-radius: 16px;
+            width: 580px;
+            max-width: 90vw;
+            padding: 0;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            overflow: hidden;
+        }
+
+        .modal-header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 24px 28px;
+            color: white;
+        }
+
+        .modal-header h3 {
+            margin: 0 0 8px 0;
+            font-size: 1.5em;
+            font-weight: 600;
+        }
+
+        .modal-header p {
+            margin: 0;
+            opacity: 0.95;
+            font-size: 0.95em;
+        }
+
+        /* Distinct visual identity for AR vs Lenso modal */
+        #arPowerModal .modal-header {
+            background: linear-gradient(135deg, #0d47a1 0%, #1976d2 100%);
+        }
+
+        #arPowerModal .modal {
+            border: 2px solid #90caf9;
+        }
+
+        #arPowerModal .eye-badge {
+            background: #e3f2fd;
+            color: #0d47a1;
+        }
+
+        #lensoPowerModal .modal-header {
+            background: linear-gradient(135deg, #1b5e20 0%, #43a047 100%);
+        }
+
+        #lensoPowerModal .modal {
+            border: 2px solid #a5d6a7;
+        }
+
+        #lensoPowerModal .eye-badge {
+            background: #e8f5e9;
+            color: #1b5e20;
+        }
+
+        .modal-body {
+            padding: 28px;
+        }
+
+        .modal-section {
+            margin-bottom: 24px;
+        }
+
+        .modal-section:last-of-type {
+            margin-bottom: 0;
+        }
+
+        .modal-section-label {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 12px;
+            font-weight: 600;
+            font-size: 1.05em;
+            color: #333;
+        }
+
+        .modal-section-label::before {
+            content: '';
+            width: 4px;
+            height: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-radius: 2px;
+        }
+
+        .eye-badge {
+            display: inline-block;
+            padding: 2px 8px;
+            background: #f0f4ff;
+            color: #667eea;
+            border-radius: 4px;
+            font-size: 0.85em;
+            font-weight: 600;
+            margin-left: 4px;
+        }
+
+        .modal-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 12px;
+        }
+
+        .modal-input-group {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .modal-input-label {
+            font-size: 0.8em;
+            font-weight: 600;
+            color: #666;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .modal-grid input {
+            width: 100%;
+            padding: 10px 12px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 15px;
+            font-weight: 500;
+            transition: all 0.2s;
+            background: #fafafa;
+        }
+
+        .modal-grid input:focus {
+            outline: none;
+            border-color: #667eea;
+            background: white;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        .modal-grid input::placeholder {
+            color: #bbb;
+            font-weight: 400;
+        }
+
+        .modal-row {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 14px;
+        }
+
+        .modal-row label {
+            font-weight: 600;
+            color: #444;
+            min-width: 70px;
+            display: inline-flex;
+            align-items: center;
+        }
+
+        .modal-actions {
+            display: flex;
+            justify-content: flex-end;
+            gap: 12px;
+            margin-top: 28px;
+            padding-top: 24px;
+            border-top: 2px solid #f0f0f0;
+        }
+
+        .main-content {
+            display: grid;
+            grid-template-columns: 2fr 1fr;
+            gap: 20px;
+            transition: grid-template-columns 0.2s ease;
+        }
+        .main-content.logs-expanded {
+            grid-template-columns: 2fr 1fr minmax(320px, 1fr);
+        }
+        .logs-panel-wrapper {
+            display: none;
+            min-width: 0;
+            overflow: hidden;
+        }
+        .main-content.logs-expanded .logs-panel-wrapper {
+            display: flex;
+            flex-direction: column;
+            min-width: 320px;
+            animation: logsSlideIn 0.2s ease;
+        }
+        @keyframes logsSlideIn {
+            from { opacity: 0; margin-right: -20px; }
+            to { opacity: 1; margin-right: 0; }
+        }
+        .logs-tab {
+            position: fixed;
+            right: 0;
+            top: 50%;
+            transform: translateY(-50%);
+            writing-mode: vertical-rl;
+            text-orientation: mixed;
+            padding: 12px 8px;
+            background: linear-gradient(135deg, #2d2d44 0%, #1e1e2e 100%);
+            color: #e0e0e0;
+            font-size: 0.85em;
+            font-weight: 600;
+            border-radius: 12px 0 0 12px;
+            cursor: pointer;
+            box-shadow: -2px 0 10px rgba(0,0,0,0.2);
+            z-index: 500;
+            border: 1px solid #444;
+            border-right: none;
+        }
+        .logs-tab:hover {
+            background: linear-gradient(135deg, #3d3d54 0%, #2e2e3e 100%);
+            color: white;
+        }
+        .logs-tab.hidden {
+            display: none;
+        }
+
+        .test-panel {
+            background: white;
+            border-radius: 15px;
+            padding: 20px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+        }
+
+        .info-panel {
+            background: white;
+            border-radius: 15px;
+            padding: 20px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+        }
+
+        .logs-panel {
+            background: #1e1e2e;
+            border-radius: 15px;
+            padding: 0;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+            display: flex;
+            flex-direction: column;
+            min-height: 400px;
+            max-height: calc(100vh - 180px);
+        }
+        .logs-panel-header {
+            padding: 12px 16px;
+            background: linear-gradient(135deg, #2d2d44 0%, #1e1e2e 100%);
+            color: #e0e0e0;
+            font-weight: 600;
+            font-size: 0.95em;
+            border-bottom: 1px solid #444;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        .logs-panel-header button {
+            padding: 4px 10px;
+            font-size: 0.8em;
+            background: #667eea;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+        }
+        .logs-panel-header button:hover {
+            background: #764ba2;
+        }
+        .logs-panel-close {
+            padding: 2px 8px;
+            font-size: 0.9em;
+            margin-left: 8px;
+        }
+        .logs-panel-content {
+            flex: 1;
+            overflow: auto;
+            padding: 12px;
+            font-family: ui-monospace, monospace;
+            font-size: 0.75em;
+            line-height: 1.4;
+        }
+        .log-entry {
+            margin-bottom: 14px;
+            border-radius: 8px;
+            overflow: hidden;
+            border: 1px solid #333;
+            background: #252536;
+        }
+        .log-entry-header {
+            padding: 6px 10px;
+            background: #333;
+            color: #aaa;
+            font-size: 0.85em;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .log-entry-method {
+            font-weight: 700;
+            color: #667eea;
+        }
+        .log-entry-curl {
+            padding: 10px 12px;
+            white-space: pre-wrap;
+            word-break: break-all;
+            color: #cdd6f4;
+        }
+        .log-entry-curl .curl-url { color: #a6e3a1; }
+        .log-entry-curl .curl-method { color: #f9e2af; }
+        .log-entry-curl .curl-header { color: #89b4fa; }
+        .log-entry-curl .curl-body { color: #cba6f7; }
+
+        .phase-badge {
+            display: inline-block;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 8px 16px;
+            border-radius: 25px;
+            font-weight: bold;
+            margin-bottom: 12px;
+            font-size: 0.85em;
+        }
+
+        .question-box {
+            background: #f8f9fa;
+            border-left: 5px solid #667eea;
+            padding: 15px;
+            margin: 10px 0;
+            border-radius: 5px;
+        }
+
+        .question-box h3 {
+            color: #333;
+            margin-bottom: 10px;
+            font-size: 1.3em;
+        }
+
+        .question-text {
+            color: #555;
+            font-size: 1.1em;
+            line-height: 1.5;
+        }
+
+        .chart-selector {
+            background: #fff;
+            border: 2px solid #667eea;
+            border-radius: 10px;
+            padding: 15px;
+            margin: 10px 0;
+            display: none;
+        }
+
+        .chart-selector.active {
+            display: block;
+        }
+
+        .chart-selector h4 {
+            color: #667eea;
+            margin-bottom: 15px;
+            font-size: 1.1em;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .chart-selector h4::before {
+            content: "📊";
+            font-size: 1.3em;
+        }
+
+        .chart-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+
+        .chart-button {
+            padding: 12px 15px;
+            background: #f5f5f5;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-size: 0.95em;
+            text-align: left;
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+
+        .chart-button:hover {
+            background: #e3f2fd;
+            border-color: #667eea;
+            transform: translateY(-2px);
+        }
+
+        .chart-button.active {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border-color: #667eea;
+            font-weight: 600;
+        }
+
+        .chart-button .chart-name {
+            font-weight: 600;
+            font-size: 1em;
+        }
+
+        .chart-button .chart-size {
+            font-size: 0.85em;
+            opacity: 0.8;
+        }
+
+        .chart-button.active .chart-size {
+            opacity: 1;
+        }
+
+        .chart-info {
+            background: #f0f4ff;
+            padding: 10px 15px;
+            border-radius: 5px;
+            font-size: 0.9em;
+            color: #555;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .chart-info::before {
+            content: "ℹ️";
+        }
+
+        .optotype-selector {
+            background: #fff;
+            border: 2px solid #4CAF50;
+            border-radius: 10px;
+            padding: 15px;
+            margin: 10px 0;
+            display: none;
+        }
+
+        .optotype-selector.active {
+            display: block;
+        }
+
+        .optotype-selector h4 {
+            color: #4CAF50;
+            margin-bottom: 15px;
+            font-size: 1.1em;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .optotype-selector h4::before {
+            content: "👁️‍🗨️";
+            font-size: 1.3em;
+        }
+
+        .optotype-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(80px, 1fr));
+            gap: 10px;
+        }
+
+        .optotype-button {
+            padding: 10px 15px;
+            background: #f5f5f5;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-size: 1em;
+            text-align: center;
+            font-weight: 600;
+            color: #333;
+        }
+
+        .optotype-button:hover {
+            background: #e8f5e9;
+            border-color: #4CAF50;
+            transform: translateY(-2px);
+        }
+
+        .optotype-button.active {
+            background: linear-gradient(135deg, #4CAF50 0%, #2E7D32 100%);
+            color: white;
+            border-color: #2E7D32;
+        }
+
+        .optotype-button.pinhole-button:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .optotype-button.pinhole-button:disabled:hover {
+            background: inherit;
+            transform: none;
+        }
+
+        .intents-container {
+            margin: 15px 0;
+        }
+
+        .intents-container h4 {
+            color: #333;
+            margin-bottom: 15px;
+            font-size: 1.1em;
+        }
+
+        .intent-button {
+            display: block;
+            width: 100%;
+            padding: 15px 20px;
+            margin: 10px 0;
+            background: white;
+            border: 2px solid #667eea;
+            border-radius: 10px;
+            color: #667eea;
+            font-size: 1em;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-align: left;
+        }
+
+        .intent-button:hover {
+            background: #667eea;
+            color: white;
+            transform: translateX(5px);
+        }
+
+        .intent-button:active {
+            transform: scale(0.98);
+        }
+
+        .control-buttons {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
+        }
+
+        .complete-validation-buttons {
+            display: flex;
+            gap: 12px;
+            margin-top: 20px;
+            flex-wrap: wrap;
+        }
+
+        .complete-validation-buttons .btn {
+            min-width: 180px;
+        }
+
+        .btn {
+            padding: 12px 28px;
+            border: none;
+            border-radius: 8px;
+            font-size: 1em;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-weight: 600;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+        }
+
+        .btn-primary:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn-primary:active {
+            transform: translateY(0);
+        }
+
+        .btn-secondary {
+            background: white;
+            color: #666;
+            border: 2px solid #e0e0e0;
+        }
+
+        .btn-secondary:hover {
+            background: #f8f8f8;
+            border-color: #ccc;
+        }
+
+        .btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            pointer-events: none;
+        }
+
+        .btn-secondary {
+            background: #e0e0e0;
+            color: #333;
+        }
+
+        .btn-secondary:hover {
+            background: #d0d0d0;
+        }
+
+        .command-section {
+            margin-top: 20px;
+            padding-top: 20px;
+            border-top: 2px solid #f0f0f0;
+        }
+
+        .command-section h4 {
+            color: #667eea;
+            margin-bottom: 12px;
+            font-size: 1.1em;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .command-group {
+            margin-bottom: 15px;
+        }
+
+        .command-group-label {
+            font-size: 0.85em;
+            color: #666;
+            margin-bottom: 6px;
+            font-weight: 600;
+        }
+
+        .command-buttons {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 6px;
+        }
+
+        .cmd-btn {
+            padding: 8px 4px;
+            font-size: 0.8em;
+            background: #fff;
+            border: 1.5px solid #667eea;
+            color: #667eea;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.2s;
+            text-align: center;
+            font-weight: 600;
+        }
+
+        .cmd-btn:hover {
+            background: #667eea;
+            color: white;
+        }
+
+        .info-section {
+            margin-bottom: 15px;
+            padding-bottom: 15px;
+            border-bottom: 1px solid #e0e0e0;
+        }
+
+        .info-section:last-child {
+            border-bottom: none;
+        }
+
+        .info-section h4 {
+            color: #667eea;
+            margin-bottom: 10px;
+            font-size: 1em;
+        }
+
+        .info-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px 0;
+            color: #555;
+        }
+
+        .info-label {
+            font-weight: 600;
+            color: #333;
+        }
+
+        .info-value {
+            color: #666;
+            font-family: 'Courier New', monospace;
+        }
+
+        .status-indicator {
+            display: inline-block;
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            margin-right: 8px;
+        }
+
+        .status-active {
+            background: #4caf50;
+            box-shadow: 0 0 10px #4caf50;
+        }
+
+        .status-inactive {
+            background: #f44336;
+        }
+
+        .loading {
+            display: none;
+            text-align: center;
+            padding: 20px;
+        }
+
+        .loading.active {
+            display: block;
+        }
+
+        .spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #667eea;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto;
+        }
+
+        @keyframes spin {
+            0% {
+                transform: rotate(0deg);
+            }
+
+            100% {
+                transform: rotate(360deg);
+            }
+        }
+
+        .history-log {
+            max-height: 300px;
+            overflow-y: auto;
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 8px;
+            font-size: 0.9em;
+        }
+
+        /* Collapsible middle section + Jump to Phase (compact row when minimized) */
+        .middle-bottom-row {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 6px 12px;
+            padding: 8px 0;
+            border-bottom: 1px solid #eee;
+            margin-bottom: 8px;
+        }
+        .section-toggle-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            padding: 4px 10px;
+            font-size: 0.85em;
+            background: #f0f4ff;
+            border: 1px solid #c5cae9;
+            border-radius: 6px;
+            cursor: pointer;
+            color: #333;
+        }
+        .section-toggle-btn:hover {
+            background: #e8ecff;
+            border-color: #667eea;
+        }
+        .section-toggle-btn .arrow {
+            font-size: 0.75em;
+        }
+        .info-section.collapsible .section-body {
+            overflow: hidden;
+        }
+        .info-section.collapsible.collapsed .section-body {
+            display: none;
+        }
+        /* History and Commands: when collapsed hide entire section (compact row shows toggles) */
+        .info-section.collapsible.collapsed.collapse-hides-section {
+            display: none;
+        }
+        .info-section.collapsible h4 {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 8px;
+        }
+        .phase-jump-inline {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            margin-left: auto;
+        }
+        .phase-jump-inline label {
+            color: #666;
+            font-weight: 600;
+            font-size: 0.85em;
+            white-space: nowrap;
+        }
+        .phase-jump-inline select {
+            padding: 4px 8px;
+            border: 1px solid #c5cae9;
+            border-radius: 6px;
+            font-size: 0.85em;
+            min-width: 180px;
+        }
+        .phase-jump-inline button {
+            padding: 4px 12px;
+            font-size: 0.85em;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 600;
+        }
+        .phase-jump-inline button:hover:not(:disabled) {
+            opacity: 0.95;
+        }
+        .phase-jump-inline button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .history-item {
+            padding: 8px;
+            margin: 5px 0;
+            background: white;
+            border-radius: 5px;
+            border-left: 3px solid #667eea;
+        }
+
+        .alert {
+            padding: 15px;
+            border-radius: 8px;
+            margin: 15px 0;
+        }
+
+        .alert-info {
+            background: #e3f2fd;
+            color: #1976d2;
+            border-left: 4px solid #1976d2;
+        }
+
+        .alert-success {
+            background: #e8f5e9;
+            color: #388e3c;
+            border-left: 4px solid #388e3c;
+        }
+
+        .alert-warning {
+            background: #fff3e0;
+            color: #f57c00;
+            border-left: 4px solid #f57c00;
+        }
+
+        .footer {
+            background: white;
+            border-radius: 15px;
+            padding: 20px 30px;
+            margin-top: 20px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .footer .phase-jump {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .footer .phase-jump label {
+            color: #666;
+            font-weight: 600;
+        }
+
+        .footer .phase-jump select {
+            padding: 8px 15px;
+            border: 2px solid #667eea;
+            border-radius: 8px;
+            background: white;
+            color: #333;
+            font-size: 1em;
+            cursor: pointer;
+            min-width: 300px;
+        }
+
+        .footer .phase-jump select:hover {
+            border-color: #764ba2;
+        }
+
+        .footer .phase-jump button {
+            padding: 8px 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: transform 0.2s;
+        }
+
+        .footer .phase-jump button:hover {
+            transform: translateY(-2px);
+        }
+
+        .footer .phase-jump button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        /* ── Refraction Table ───────────────────────────── */
+        .refraction-table {
+            width: 100%;
+            border-collapse: separate;
+            border-spacing: 0;
+            background: #fff;
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+            overflow: hidden;
+            margin-top: 10px;
+        }
+
+        .refraction-table th {
+            font-size: 0.75rem;
+            color: #8b949e;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            padding: 8px;
+            text-align: center;
+            border-bottom: 1px solid #e0e0e0;
+            background: #f8f9fa;
+        }
+
+        .rt-row td {
+            text-align: center;
+            padding: 8px 4px;
+            font-family: 'JetBrains Mono', 'Courier New', monospace;
+            font-size: 1.05rem;
+            font-weight: 600;
+            color: #24292f;
+            border-bottom: 1px solid #e0e0e0;
+        }
+
+        .rt-row:last-child td {
+            border-bottom: none;
+        }
+
+        /* Eye Labels inside Table */
+        .rt-eye-r,
+        .rt-eye-l {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif !important;
+            font-size: 0.9rem !important;
+            font-weight: 700 !important;
+            width: 30px;
+            border-right: 1px solid #e0e0e0;
+            background: #f8f9fa;
+        }
+
+        .rt-eye-r {
+            color: #d73a49;
+        }
+
+        .rt-eye-l {
+            color: #0366d6;
+        }
+
+        /* Values */
+        .rt-val {
+            cursor: ns-resize;
+            transition: background 0.15s;
+            user-select: none;
+            -webkit-user-select: none;
+            position: relative;
+        }
+
+        .rt-val:hover {
+            background: #e3f2fd;
+        }
+
+        .rt-val::after {
+            content: attr(data-tip);
+            position: absolute;
+            bottom: calc(100% + 6px);
+            left: 50%;
+            transform: translateX(-50%);
+            background: #333;
+            color: #fff;
+            font-size: 0.72em;
+            font-family: 'Segoe UI', sans-serif;
+            font-weight: 500;
+            white-space: nowrap;
+            padding: 4px 8px;
+            border-radius: 5px;
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.15s;
+            z-index: 100;
+        }
+
+        .rt-val:hover::after {
+            opacity: 1;
+        }
+
+        .rt-val.locked {
+            cursor: not-allowed;
+            opacity: 0.45;
+        }
+
+        #manualLockBtn.locked {
+            color: #f44336;
+        }
+
+        #typeModeBtn.active {
+            background: rgba(102, 126, 234, 0.12) !important;
+            border-radius: 4px;
+        }
+
+        .rt-val.type-mode {
+            cursor: text;
+        }
+
+        .rt-val.type-mode:hover {
+            background: #e8eaf6;
+            outline: 2px solid #667eea;
+            outline-offset: -2px;
+            border-radius: 3px;
+        }
+
+        .rt-type-input {
+            width: 100%;
+            border: none;
+            outline: none;
+            background: #e8eaf6;
+            text-align: center;
+            font-family: 'JetBrains Mono', 'Courier New', monospace;
+            font-size: 1.05rem;
+            font-weight: 600;
+            color: #1a237e;
+            padding: 2px 0;
+            box-shadow: inset 0 0 0 2px #667eea;
+            border-radius: 3px;
+        }
+
+        .rt-type-input:focus {
+            background: #c5cae9;
+        }
+
+        /* AR Power table: same look as Current Power, read-only (no drag cursor / tooltip) */
+        #arPowerTable .rt-val {
+            cursor: default;
+        }
+        #arPowerTable .rt-val::after {
+            display: none;
+        }
+
+        /* Live view button – bottom left */
+        .screenshot-view-btn {
+            position: fixed;
+            bottom: 24px;
+            left: 24px;
+            z-index: 900;
+            padding: 10px 18px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 10px;
+            font-weight: 600;
+            font-size: 0.9em;
+            cursor: pointer;
+            box-shadow: 0 4px 14px rgba(102, 126, 234, 0.4);
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        .screenshot-view-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(102, 126, 234, 0.5);
+        }
+
+        /* Live screenshot panel (docked inside right panel) */
+        .screenshot-modal-backdrop {
+            display: none;
+            position: relative;
+            inset: auto;
+            z-index: 1;
+            pointer-events: auto;
+            margin-top: 10px;
+        }
+        .screenshot-modal-backdrop.active {
+            display: block;
+        }
+        .screenshot-modal {
+            position: relative;
+            left: auto;
+            top: auto;
+            transform: none;
+            min-width: 0;
+            width: 100%;
+            max-width: 100%;
+            min-height: 220px;
+            height: 320px;
+            max-height: 70vh;
+            background: white;
+            border-radius: 10px;
+            border: 1px solid #e0e0f5;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            pointer-events: auto;
+            resize: vertical;
+        }
+        .screenshot-modal-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+            padding: 10px 14px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            font-weight: 600;
+            cursor: default;
+            user-select: none;
+            flex-shrink: 0;
+            touch-action: none;
+        }
+        .screenshot-modal-header button {
+            cursor: pointer;
+        }
+        .screenshot-modal-header .screenshot-zoom-controls {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .screenshot-modal-header .screenshot-zoom-btn {
+            width: 28px;
+            height: 28px;
+            border: none;
+            background: rgba(255,255,255,0.25);
+            color: white;
+            border-radius: 6px;
+            font-size: 1.1em;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .screenshot-modal-header .screenshot-zoom-btn:hover {
+            background: rgba(255,255,255,0.4);
+        }
+        .screenshot-modal-header .screenshot-zoom-label {
+            font-size: 0.8em;
+            min-width: 36px;
+            text-align: center;
+        }
+        .screenshot-modal-close {
+            background: rgba(255,255,255,0.2);
+            border: none;
+            color: white;
+            width: 32px;
+            height: 32px;
+            border-radius: 8px;
+            font-size: 1.2em;
+            line-height: 1;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+        }
+        .screenshot-modal-close:hover {
+            background: rgba(255,255,255,0.3);
+        }
+        .screenshot-modal-body {
+            padding: 10px;
+            overflow: auto;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 180px;
+            background: #1a1a1a;
+            flex: 1;
+        }
+        .screenshot-img-wrap {
+            transform-origin: center center;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+        }
+        .screenshot-timestamp {
+            position: absolute;
+            bottom: 8px;
+            left: 8px;
+            padding: 4px 8px;
+            background: rgba(0, 0, 0, 0.65);
+            color: #fff;
+            font-size: 0.8em;
+            font-family: monospace;
+            border-radius: 4px;
+            pointer-events: none;
+        }
+        .screenshot-img {
+            max-width: 100%;
+            max-height: calc(70vh - 130px);
+            object-fit: contain;
+            display: none;
+        }
+        .screenshot-img.loaded {
+            display: block;
+        }
+        .screenshot-loading,
+        .screenshot-error {
+            color: #999;
+            padding: 20px;
+        }
+        .screenshot-error {
+            color: #c62828;
+        }
+        .screenshot-resize-handle {
+            display: none;
+        }
+        .screenshot-history-bar {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 8px 12px;
+            background: #f0f4ff;
+            border-top: 1px solid #e0e0e0;
+            flex-shrink: 0;
+        }
+        .screenshot-history-bar .screenshot-nav-btn {
+            padding: 6px 12px;
+            font-size: 0.85em;
+            border: 1px solid #667eea;
+            background: white;
+            color: #667eea;
+            border-radius: 6px;
+            cursor: pointer;
+        }
+        .screenshot-history-bar .screenshot-nav-btn:hover:not(:disabled) {
+            background: #667eea;
+            color: white;
+        }
+        .screenshot-history-bar .screenshot-nav-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        .screenshot-history-bar .screenshot-history-label {
+            font-size: 0.9em;
+            color: #333;
+            min-width: 64px;
+        }
+
+        @media (max-width: 1200px) {
+            .main-content.logs-expanded {
+                grid-template-columns: 1fr;
+            }
+            .main-content.logs-expanded .logs-panel-wrapper {
+                min-width: 0;
+            }
+        }
+        @media (max-width: 768px) {
+            .logs-tab {
+                padding: 10px 6px;
+                font-size: 0.8em;
+            }
+        }
+        /* Password modal for logs */
+        .logs-password-modal .modal {
+            max-width: 360px;
+        }
+        .logs-password-modal .modal-body input[type="password"] {
+            width: 100%;
+            padding: 10px 12px;
+            font-size: 1em;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+        }
+        .logs-password-modal .modal-body .password-error {
+            color: #c62828;
+            font-size: 0.9em;
+            margin-top: 8px;
+            display: none;
+        }
+        .logs-password-modal .modal-body .password-error.visible {
+            display: block;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <div class="header">
+            <div
+                style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
+                <div>
+                    <h2>👁️ Eye Test Engine</h2>
+                </div>
+                <div style="display: flex; gap: 12px; align-items: center; flex-wrap: wrap;">
+                    <div style="display: flex; gap: 6px; align-items: center;">
+                        <button class="ar-power-btn" onclick="openArPowerModal()">Set AR</button>
+                        <button class="ar-power-btn" onclick="openLensoPowerModal()">Set Lenso</button>
+                        <button id="memBtn" class="compare-state-btn" onclick="handleMemClick()"
+                            oncontextmenu="event.preventDefault(); clearMemory();"
+                            title="Memory (right-click to clear)">
+                            Mem
+                        </button>
+                    </div>
+                    <div
+                        style="border-left: 2px solid #ddd; padding-left: 12px; display: flex; gap: 8px; align-items: center;">
+                        <span style="color: #666; font-weight: 600; font-size: 0.85em;">Apply:</span>
+                        <button id="applyArBtn" class="power-apply-btn" onclick="applyStoredPower('ar')" disabled
+                            title="Set AR Power first" style="padding: 4px 12px;">
+                            AR
+                        </button>
+                        <button id="applyLensoBtn" class="power-apply-btn" onclick="applyStoredPower('lenso')" disabled
+                            title="Set Lenso Power first" style="padding: 4px 12px;">
+                            Lenso
+                        </button>
+                    </div>
+                    <div style="border-left: 2px solid #ddd; padding-left: 12px; display: flex; gap: 6px; align-items: center;">
+                        <label for="phoropterIdInput" style="color: #666; font-weight: 600; font-size: 0.85em; white-space: nowrap;">Device ID:</label>
+                        <select
+                            id="phoropterIdInput"
+                            title="Phoropter device ID used in all API calls"
+                            style="width: 180px; padding: 4px 8px; border: 1.5px solid #c5cae9; border-radius: 6px; font-size: 0.85em; font-family: monospace; color: #333; background: #f8f9ff; outline: none;"
+                            onchange="onDeviceSelectionChanged()">
+                            <option value="">Loading devices...</option>
+                        </select>
+                        <button
+                            id="acquireDeviceBtn"
+                            class="btn btn-primary"
+                            onclick="acquireSelectedDevice()"
+                            style="display:none; padding: 6px 10px; font-size: 0.82em;">
+                            Acquire
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="main-content">
+            <div class="test-panel">
+                <div id="welcomeScreen">
+                    <h2>Welcome to the Eye Test</h2>
+                    <p style="margin: 20px 0; color: #666; line-height: 1.6;">
+                        This interactive system will guide you through a complete eye examination.
+                        The phoropter will be automatically controlled based on your responses.
+                    </p>
+                    <div class="alert alert-info">
+                        <strong>Note:</strong> Make sure the phoropter API is accessible at:
+                        <code>https://rajasthan-royals.preprod.lenskart.com</code>
+                    </div>
+                    <div class="info-section" style="margin-top: 14px;">
+                        <h4>Customer Details (Optional)</h4>
+                        <input
+                            id="customerNameInput"
+                            type="text"
+                            placeholder="Enter customer name"
+                            maxlength="80"
+                            style="width: 100%; padding: 10px 12px; border: 1.5px solid #d7dcf5; border-radius: 8px; font: inherit; color: #222; background: #fff; margin-bottom: 10px;">
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                            <input
+                                id="customerAgeInput"
+                                type="number"
+                                min="18"
+                                max="120"
+                                placeholder="Age"
+                                style="width: 100%; padding: 10px 12px; border: 1.5px solid #d7dcf5; border-radius: 8px; font: inherit; color: #222; background: #fff;">
+                            <select
+                                id="customerGenderInput"
+                                style="width: 100%; padding: 10px 12px; border: 1.5px solid #d7dcf5; border-radius: 8px; font: inherit; color: #222; background: #fff;">
+                                <option value="">Gender</option>
+                                <option value="Male">Male</option>
+                                <option value="Female">Female</option>
+                                <option value="Other">Other</option>
+                                <option value="Prefer not to say">Prefer not to say</option>
+                            </select>
+                        </div>
+                    </div>
+                    <button class="btn btn-primary" id="startTestBtn" onclick="startTest()" disabled>Connecting to backend...</button>
+                </div>
+
+                <div id="testScreen" style="display: none;">
+                    <span class="phase-badge" id="phaseBadge">Loading...</span>
+
+                    <div class="question-box">
+                        <h3>Question</h3>
+                        <p class="question-text" id="questionText">Loading question...</p>
+                    </div>
+
+                    <div class="intents-container">
+                        <h4>Please select your response:</h4>
+                        <div id="intentButtons"></div>
+                    </div>
+
+                    <!-- Chart Selector (shown only during Phase B) -->
+                    <div id="chartSelector" class="chart-selector">
+                        <h4>Chart Selection</h4>
+                        <div class="chart-info">
+                            Click any chart below to switch to it. Current progress will be maintained.
+                        </div>
+                        <div id="chartGrid" class="chart-grid"></div>
+                    </div>
+
+                    <!-- Optotype Selector (shown for specific charts) -->
+                    <div id="optotypeSelector" class="optotype-selector">
+                        <h4>Specific Optotype</h4>
+                        <div id="optotypeGrid" class="optotype-grid"></div>
+                    </div>
+
+                    <div class="loading" id="loadingIndicator">
+                        <div class="spinner"></div>
+                        <p style="margin-top: 10px; color: #666;">Processing...</p>
+                    </div>
+
+                    <div class="control-buttons">
+                        <button class="btn btn-secondary" onclick="endTest()">End Test</button>
+                    </div>
+                </div>
+
+                <div id="completeScreen" style="display: none;">
+                    <h2>✅ Test Complete!</h2>
+                    <div class="alert alert-info" id="completeValidationPrompt">
+                        <strong>Validate prescription:</strong> Please verify that the final prescription below matches the phoropter image.
+                    </div>
+                    <div id="finalPrescription"></div>
+                    <div class="info-section" id="completeFeedbackSection">
+                        <h4>Additional Feedback (Optional)</h4>
+                        <textarea
+                            id="completeQualitativeFeedback"
+                            rows="4"
+                            placeholder="Any qualitative feedback about the eye test flow..."
+                            style="width: 100%; padding: 10px 12px; border: 1.5px solid #d7dcf5; border-radius: 8px; font: inherit; color: #222; background: #fff; resize: vertical;"></textarea>
+                    </div>
+                    <div id="completeValidationButtons" class="complete-validation-buttons">
+                        <button class="btn btn-primary" id="signOffBtn" onclick="signOff()">Sign-off</button>
+                        <button class="btn btn-secondary" id="powerDoesNotMatchBtn" onclick="powerDoesNotMatch()">Power does not match</button>
+                    </div>
+                    <div id="completeAfterValidation" style="display: none;">
+                        <div class="alert alert-success" id="completeResultMessage"></div>
+                        <button class="btn btn-primary" onclick="startNewTest()">Start New Test</button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="info-panel">
+                <div class="info-section collapsible" id="section-session-status">
+                    <h4>
+                        Session Status
+                        <button type="button" class="section-toggle-btn" onclick="toggleSection('session-status')" aria-label="Collapse">
+                            <span class="arrow" id="sessionStatusArrow">▼</span>
+                        </button>
+                    </h4>
+                    <div class="section-body">
+                        <div class="info-item">
+                            <span class="info-label">
+                                <span class="status-indicator" id="statusIndicator"></span>
+                                Status
+                            </span>
+                            <span class="info-value" id="sessionStatus">Not Started</span>
+                        </div>
+                        <div class="info-item">
+                            <span class="info-label">Responses</span>
+                            <span class="info-value" id="responseCount">0</span>
+                        </div>
+                        <div class="info-item">
+                            <span class="info-label">Customer</span>
+                            <span class="info-value" id="customerNameStatus">-</span>
+                        </div>
+                        <div class="info-item">
+                            <span class="info-label">Age</span>
+                            <span class="info-value" id="customerAgeStatus">-</span>
+                        </div>
+                        <div class="info-item">
+                            <span class="info-label">Gender</span>
+                            <span class="info-value" id="customerGenderStatus">-</span>
+                        </div>
+                    </div>
+                    <!-- Hidden elements kept for JS compatibility -->
+                    <span id="sessionId" style="display:none;"></span>
+                    <span id="currentPhase" style="display:none;"></span>
+                </div>
+
+                <div class="info-section">
+                    <h4 style="display:flex; align-items:center; gap:8px;">
+                        Current Power
+                        <button id="manualLockBtn" onclick="toggleManualLock()"
+                            title="Lock/unlock click controls"
+                            style="background:none; border:none; cursor:pointer; font-size:1.1em; padding:2px 4px; border-radius:4px; line-height:1; color:#667eea;"
+                            aria-label="Toggle manual control lock">
+                            🔓
+                        </button>
+                        <button id="typeModeBtn" onclick="toggleTypeMode()"
+                            title="Type mode: click to enter values directly"
+                            style="background:none; border:none; cursor:pointer; font-size:1.1em; padding:2px 4px; border-radius:4px; line-height:1; color:#667eea;"
+                            aria-label="Toggle type mode">
+                            ⌨️
+                        </button>
+                    </h4>
+
+                    <table class="refraction-table" id="refractionTable">
+                        <thead>
+                            <tr>
+                                <th></th>
+                                <th>SPH</th>
+                                <th>CYL</th>
+                                <th>AXIS</th>
+                                <th id="addColHeader" style="display:none;">ADD</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <!-- Right Eye -->
+                            <tr class="rt-row" data-eye="R">
+                                <td class="rt-eye-r" id="rt-eye-r-header">R</td>
+                                <td class="rt-val" id="rt-r-sph" data-param="sph" data-eye="R">0.00</td>
+                                <td class="rt-val" id="rt-r-cyl" data-param="cyl" data-eye="R">0.00</td>
+                                <td class="rt-val" id="rt-r-axis" data-param="axis" data-eye="R">180</td>
+                                <td class="rt-val rt-add-val" id="rt-r-add" data-param="add" data-eye="R" style="display:none;">0.00</td>
+                            </tr>
+                            <!-- Left Eye -->
+                            <tr class="rt-row" data-eye="L">
+                                <td class="rt-eye-l" id="rt-eye-l-header">L</td>
+                                <td class="rt-val" id="rt-l-sph" data-param="sph" data-eye="L">0.00</td>
+                                <td class="rt-val" id="rt-l-cyl" data-param="cyl" data-eye="L">0.00</td>
+                                <td class="rt-val" id="rt-l-axis" data-param="axis" data-eye="L">180</td>
+                                <td class="rt-val rt-add-val" id="rt-l-add" data-param="add" data-eye="L" style="display:none;">0.00</td>
+                            </tr>
+                        </tbody>
+                    </table>
+
+                    <div class="info-item" style="margin-top: 15px;">
+                        <span class="info-label">Occluder</span>
+                        <span class="info-value" id="occluderState">BINO</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-label">Chart</span>
+                        <span class="info-value" id="chartDisplay">-</span>
+                    </div>
+                </div>
+
+                <div class="info-section collapsible" id="arPowerSection" style="display: none;">
+                    <h4>📱 AR Power <button type="button" class="section-toggle-btn" id="arPowerToggleBtn" onclick="toggleSection('ar')" aria-label="Collapse"><span class="arrow" id="arArrow">▼</span></button></h4>
+                    <div class="section-body">
+                        <table class="refraction-table" id="arPowerTable">
+                            <thead>
+                                <tr>
+                                    <th></th>
+                                    <th>SPH</th>
+                                    <th>CYL</th>
+                                    <th>AXIS</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr class="rt-row" data-eye="R">
+                                    <td class="rt-eye-r">R</td>
+                                    <td class="rt-val" id="arPowerRSph">—</td>
+                                    <td class="rt-val" id="arPowerRCyl">—</td>
+                                    <td class="rt-val" id="arPowerRAxis">—</td>
+                                </tr>
+                                <tr class="rt-row" data-eye="L">
+                                    <td class="rt-eye-l">L</td>
+                                    <td class="rt-val" id="arPowerLSph">—</td>
+                                    <td class="rt-val" id="arPowerLCyl">—</td>
+                                    <td class="rt-val" id="arPowerLAxis">—</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Compact row: toggles + Jump to Phase (always visible when minimized) -->
+                <div class="middle-bottom-row">
+                    <button type="button" class="section-toggle-btn" id="toggleHistoryBtn" onclick="toggleSection('history')" title="Expand/collapse Test History">
+                        <span class="arrow" id="historyArrow">▼</span> Test History
+                    </button>
+                    <button type="button" class="section-toggle-btn" id="toggleCommandsBtn" onclick="toggleSection('commands')" title="Expand/collapse Chart Commands">
+                        <span class="arrow" id="commandsArrow">▼</span> Chart Commands
+                    </button>
+                    <div class="phase-jump-inline">
+                        <label for="phaseSelect">Jump to Phase:</label>
+                        <select id="phaseSelect">
+                            <option value="">-- Select Phase --</option>
+                            <option value="distance_vision">Phase A: Distance Vision (Step 2.1)</option>
+                            <option value="right_eye_refraction">Phase B: Right Eye Refraction (Step 6.1)</option>
+                            <option value="jcc_axis_right">Phase E: JCC Axis Right (Step 6.2)</option>
+                            <option value="jcc_power_right">Phase F: JCC Power Right (Step 6.2)</option>
+                            <option value="duochrome_right">Phase G: Duochrome Right (Step 6.2)</option>
+                            <option value="left_eye_refraction">Phase D: Left Eye Refraction (Step 6.3)</option>
+                            <option value="jcc_axis_left">Phase H: JCC Axis Left (Step 6.4)</option>
+                            <option value="jcc_power_left">Phase I: JCC Power Left (Step 6.4)</option>
+                            <option value="duochrome_left">Phase J: Duochrome Left (Step 6.4)</option>
+                            <option value="binocular_balance">Phase K: Binocular Balance (Step 6.5)</option>
+                            <option value="near_add_right">Phase P: Near Vision - Right Eye ADD</option>
+                            <option value="near_add_left">Phase Q: Near Vision - Left Eye ADD</option>
+                            <option value="near_add_bino">Phase R: Near Vision - Binocular ADD</option>
+                        </select>
+                        <button type="button" onclick="jumpToPhase()" id="jumpBtn">Go</button>
+                    </div>
+                </div>
+
+                <div class="screenshot-modal-backdrop" id="screenshotModalBackdrop">
+                    <div class="screenshot-modal" id="screenshotModal">
+                        <div class="screenshot-modal-header" id="screenshotModalHeader">
+                            <span>📷 Live phoropter screen</span>
+                            <div class="screenshot-zoom-controls">
+                                <button type="button" class="screenshot-zoom-btn" id="screenshotZoomOut" title="Zoom out">−</button>
+                                <span class="screenshot-zoom-label" id="screenshotZoomLabel">100%</span>
+                                <button type="button" class="screenshot-zoom-btn" id="screenshotZoomIn" title="Zoom in">+</button>
+                            </div>
+                            <button type="button" class="screenshot-modal-close" onclick="closeScreenshotModal()" title="Hide">✕</button>
+                        </div>
+                        <div class="screenshot-modal-body">
+                            <div class="screenshot-img-wrap" id="screenshotImgWrap">
+                                <img id="screenshotImage" src="" alt="Phoropter screen" class="screenshot-img">
+                                <span class="screenshot-timestamp" id="screenshotTimestamp"></span>
+                            </div>
+                            <div id="screenshotLoading" class="screenshot-loading">Loading…</div>
+                            <div id="screenshotError" class="screenshot-error" style="display: none;">Failed to load image</div>
+                        </div>
+                        <div class="screenshot-history-bar" id="screenshotHistoryBar">
+                            <button type="button" class="screenshot-nav-btn" id="screenshotPrevBtn" onclick="screenshotShowPrevious()" disabled>← Previous</button>
+                            <span class="screenshot-history-label" id="screenshotHistoryLabel">—</span>
+                            <button type="button" class="screenshot-nav-btn" id="screenshotNextBtn" onclick="screenshotShowNext()" disabled>Next →</button>
+                            <button type="button" class="screenshot-nav-btn" id="screenshotLatestBtn" onclick="screenshotShowLatest()" disabled>Latest</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="info-section collapsible collapse-hides-section" id="section-history">
+                    <h4>Test History <button type="button" class="section-toggle-btn" onclick="toggleSection('history')" aria-label="Collapse">▼</button></h4>
+                    <div class="section-body">
+                        <div id="historyLog" class="history-log">
+                            <div style="color: #999; text-align: center; padding: 20px;">No events yet</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="info-section collapsible collapse-hides-section command-section" id="section-commands">
+                    <h4>Chart Commands <button type="button" class="section-toggle-btn" onclick="toggleSection('commands')" aria-label="Collapse">▼</button></h4>
+                    <div class="section-body">
+                        <div id="directCommands">
+                            <!-- Populated by JS -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="logs-panel-wrapper" id="logsPanelWrapper">
+                <div class="logs-panel">
+                    <div class="logs-panel-header">
+                        <span>📡 Request logs (curl)</span>
+                        <span>
+                            <button type="button" id="clearLogsBtn" onclick="clearRequestLogs()">Clear</button>
+                            <button type="button" class="logs-panel-close" id="logsPanelCloseBtn" onclick="closeLogsPanel()" title="Minimize logs">✕</button>
+                        </span>
+                    </div>
+                    <div class="logs-panel-content" id="requestLogsContent">
+                        <div class="logs-placeholder" id="requestLogsPlaceholder" style="color: #666;">No requests yet.</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <button type="button" class="logs-tab" id="logsTabBtn" onclick="requestShowLogsPanel()" title="Open request logs">📡 Logs</button>
+
+        <!-- Live screenshot button (bottom-left) -->
+        <button type="button" id="screenshotViewBtn" class="screenshot-view-btn" onclick="toggleScreenshotModal()" title="Live phoropter screen">
+            📷 Live view
+        </button>
+
+    </div>
+
+    <!-- AR Power Modal -->
+    <div class="modal-backdrop" id="arPowerModal">
+        <div class="modal">
+            <div class="modal-header">
+                <h3>📱 Set AR Power</h3>
+                <p>Enter autorefractor power values for both eyes</p>
+            </div>
+            <div class="modal-body">
+                <div class="modal-section">
+                    <div class="modal-section-label">
+                        Right Eye <span class="eye-badge">OD</span>
+                    </div>
+                    <div class="modal-grid">
+                        <div class="modal-input-group">
+                            <label class="modal-input-label">Sphere</label>
+                            <input id="arRightSph" type="number" step="0.25" placeholder="0.00">
+                        </div>
+                        <div class="modal-input-group">
+                            <label class="modal-input-label">Cylinder</label>
+                            <input id="arRightCyl" type="number" step="0.25" placeholder="0.00">
+                        </div>
+                        <div class="modal-input-group">
+                            <label class="modal-input-label">Axis</label>
+                            <input id="arRightAxis" type="number" step="1" min="0" max="180" placeholder="180">
+                        </div>
+                    </div>
+                </div>
+
+                <div class="modal-section">
+                    <div class="modal-section-label">
+                        Left Eye <span class="eye-badge">OS</span>
+                    </div>
+                    <div class="modal-grid">
+                        <div class="modal-input-group">
+                            <label class="modal-input-label">Sphere</label>
+                            <input id="arLeftSph" type="number" step="0.25" placeholder="0.00">
+                        </div>
+                        <div class="modal-input-group">
+                            <label class="modal-input-label">Cylinder</label>
+                            <input id="arLeftCyl" type="number" step="0.25" placeholder="0.00">
+                        </div>
+                        <div class="modal-input-group">
+                            <label class="modal-input-label">Axis</label>
+                            <input id="arLeftAxis" type="number" step="1" min="0" max="180" placeholder="180">
+                        </div>
+                    </div>
+                </div>
+
+                <div class="modal-actions">
+                    <button class="btn btn-secondary" onclick="closeArPowerModal()">Cancel</button>
+                    <button class="btn btn-primary" onclick="saveArPower()">Save Values</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Lenso Power Modal -->
+    <div class="modal-backdrop" id="lensoPowerModal">
+        <div class="modal">
+            <div class="modal-header">
+                <h3>🔬 Set Lenso Power</h3>
+                <p>Enter lensometer power values for both eyes</p>
+            </div>
+            <div class="modal-body">
+                <div class="modal-section">
+                    <div class="modal-section-label">
+                        Right Eye <span class="eye-badge">OD</span>
+                    </div>
+                    <div class="modal-grid">
+                        <div class="modal-input-group">
+                            <label class="modal-input-label">Sphere</label>
+                            <input id="lensoRightSph" type="number" step="0.25" placeholder="0.00">
+                        </div>
+                        <div class="modal-input-group">
+                            <label class="modal-input-label">Cylinder</label>
+                            <input id="lensoRightCyl" type="number" step="0.25" placeholder="0.00">
+                        </div>
+                        <div class="modal-input-group">
+                            <label class="modal-input-label">Axis</label>
+                            <input id="lensoRightAxis" type="number" step="1" min="0" max="180" placeholder="180">
+                        </div>
+                    </div>
+                </div>
+
+                <div class="modal-section">
+                    <div class="modal-section-label">
+                        Left Eye <span class="eye-badge">OS</span>
+                    </div>
+                    <div class="modal-grid">
+                        <div class="modal-input-group">
+                            <label class="modal-input-label">Sphere</label>
+                            <input id="lensoLeftSph" type="number" step="0.25" placeholder="0.00">
+                        </div>
+                        <div class="modal-input-group">
+                            <label class="modal-input-label">Cylinder</label>
+                            <input id="lensoLeftCyl" type="number" step="0.25" placeholder="0.00">
+                        </div>
+                        <div class="modal-input-group">
+                            <label class="modal-input-label">Axis</label>
+                            <input id="lensoLeftAxis" type="number" step="1" min="0" max="180" placeholder="180">
+                        </div>
+                    </div>
+                </div>
+
+                <div class="modal-actions">
+                    <button class="btn btn-secondary" onclick="closeLensoPowerModal()">Cancel</button>
+                    <button class="btn btn-primary" onclick="saveLensoPower()">Save Values</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Optometrist Name Modal -->
+    <div class="modal-backdrop" id="optometristModal">
+        <div class="modal" style="width: 420px;">
+            <div class="modal-header">
+                <h3>Optometrist Identification</h3>
+                <p>Please enter your name before proceeding</p>
+            </div>
+            <div class="modal-body">
+                <div class="modal-section">
+                    <div class="modal-section-label">Full Name</div>
+                    <input id="optometristNameInput" type="text" placeholder="e.g. Dr. Sharma"
+                        style="width: 100%; padding: 12px 14px; border: 2px solid #e0e0e0; border-radius: 8px; font-size: 15px; font-weight: 500; background: #fafafa; transition: all 0.2s;"
+                        onfocus="this.style.borderColor='#667eea'; this.style.background='white'; this.style.boxShadow='0 0 0 3px rgba(102,126,234,0.1)';"
+                        onblur="this.style.borderColor='#e0e0e0'; this.style.background='#fafafa'; this.style.boxShadow='none';"
+                        onkeydown="if(event.key==='Enter') saveOptometristName();">
+                </div>
+                <div class="modal-actions">
+                    <button class="btn btn-primary" onclick="saveOptometristName()">Continue</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Logs password modal -->
+    <div class="modal-backdrop logs-password-modal" id="logsPasswordModal">
+        <div class="modal">
+            <div class="modal-header">
+                <h3>🔒 Request logs</h3>
+                <p>Enter password to view request logs</p>
+            </div>
+            <div class="modal-body">
+                <div class="modal-section">
+                    <input type="password" id="logsPasswordInput" placeholder="Password" autocomplete="off"
+                        onkeydown="if(event.key==='Enter') submitLogsPassword();">
+                    <div class="password-error" id="logsPasswordError">Incorrect password. Logs access is disabled on this browser.</div>
+                </div>
+                <div class="modal-actions">
+                    <button class="btn btn-secondary" onclick="closeLogsPasswordModal()">Cancel</button>
+                    <button class="btn btn-primary" onclick="submitLogsPassword()">Submit</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+
+</html>

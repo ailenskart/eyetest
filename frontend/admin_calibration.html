@@ -1,0 +1,776 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Eye Test Engine - Calibration Admin</title>
+    <link rel="icon" type="image/svg+xml" href="favicon.svg">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #f0f2f5;
+            min-height: 100vh;
+        }
+
+        .topbar {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 15px 30px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.15);
+        }
+
+        .topbar h1 { color: white; font-size: 1.4em; }
+        .topbar .subtitle { color: rgba(255,255,255,0.8); font-size: 0.85em; }
+
+        .topbar-actions {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+
+        .btn {
+            padding: 8px 20px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.9em;
+            font-weight: 500;
+            transition: all 0.2s;
+        }
+
+        .btn-save {
+            background: #4caf50;
+            color: white;
+        }
+
+        .btn-save:hover { background: #43a047; }
+        .btn-save:disabled { opacity: 0.5; cursor: not-allowed; }
+
+        .btn-reset {
+            background: rgba(255,255,255,0.2);
+            color: white;
+            border: 1px solid rgba(255,255,255,0.3);
+        }
+
+        .btn-reset:hover { background: rgba(255,255,255,0.3); }
+
+        .btn-history {
+            background: transparent;
+            color: white;
+            border: 1px solid rgba(255,255,255,0.3);
+        }
+
+        .search-bar {
+            display: flex;
+            align-items: center;
+            background: rgba(255,255,255,0.15);
+            border-radius: 8px;
+            padding: 6px 12px;
+            margin-right: 15px;
+        }
+
+        .search-bar input {
+            background: transparent;
+            border: none;
+            color: white;
+            font-size: 0.9em;
+            width: 200px;
+            outline: none;
+        }
+
+        .search-bar input::placeholder { color: rgba(255,255,255,0.5); }
+
+        .layout {
+            display: flex;
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        /* Sidebar nav */
+        .sidebar {
+            width: 250px;
+            background: white;
+            border-right: 1px solid #e0e0e0;
+            min-height: calc(100vh - 60px);
+            padding: 15px 0;
+            position: sticky;
+            top: 60px;
+            max-height: calc(100vh - 60px);
+            overflow-y: auto;
+        }
+
+        .sidebar-item {
+            padding: 10px 20px;
+            cursor: pointer;
+            font-size: 0.9em;
+            color: #555;
+            border-left: 3px solid transparent;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .sidebar-item:hover {
+            background: #f5f5ff;
+            color: #667eea;
+        }
+
+        .sidebar-item.active {
+            background: #f0f2ff;
+            color: #667eea;
+            border-left-color: #667eea;
+            font-weight: 600;
+        }
+
+        .sidebar-item .count {
+            background: #e8eaf6;
+            color: #667eea;
+            font-size: 0.75em;
+            padding: 2px 6px;
+            border-radius: 10px;
+            margin-left: auto;
+        }
+
+        /* Main content */
+        .content {
+            flex: 1;
+            padding: 20px 30px;
+        }
+
+        .section-card {
+            background: white;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+            overflow: hidden;
+        }
+
+        .section-header {
+            padding: 15px 20px;
+            background: #fafafa;
+            border-bottom: 1px solid #eee;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            cursor: pointer;
+            user-select: none;
+        }
+
+        .section-header h2 {
+            font-size: 1.05em;
+            color: #333;
+        }
+
+        .section-header .arrow {
+            color: #999;
+            transition: transform 0.3s;
+            font-size: 1.2em;
+        }
+
+        .section-header .arrow.open { transform: rotate(180deg); }
+
+        .section-body { padding: 0; }
+        .section-body.collapsed { display: none; }
+
+        /* Parameter rows */
+        .param-row {
+            display: grid;
+            grid-template-columns: 280px 120px 1fr 40px;
+            align-items: center;
+            padding: 10px 20px;
+            border-bottom: 1px solid #f5f5f5;
+            transition: background 0.2s;
+        }
+
+        .param-row:hover { background: #fafafa; }
+        .param-row.modified { background: #fff8e1; }
+        .param-row.hidden { display: none; }
+
+        .param-name {
+            font-size: 0.88em;
+            color: #333;
+            font-family: 'Courier New', monospace;
+        }
+
+        .param-value {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .param-value input,
+        .param-value select {
+            padding: 6px 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            font-size: 0.9em;
+            width: 100px;
+            text-align: center;
+            transition: border-color 0.2s;
+        }
+
+        .param-value input:focus,
+        .param-value select:focus {
+            border-color: #667eea;
+            outline: none;
+        }
+
+        .param-value input.changed {
+            border-color: #ff9800;
+            background: #fff8e1;
+        }
+
+        .param-unit {
+            font-size: 0.8em;
+            color: #999;
+        }
+
+        .param-desc {
+            font-size: 0.82em;
+            color: #888;
+            padding-left: 10px;
+        }
+
+        .param-risk {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+        }
+
+        .risk-safe { background: #4caf50; }
+        .risk-caution { background: #ff9800; }
+        .risk-aggressive { background: #e53935; }
+
+        /* Change indicator */
+        .changes-badge {
+            background: #ff9800;
+            color: white;
+            padding: 2px 8px;
+            border-radius: 10px;
+            font-size: 0.75em;
+            margin-left: 8px;
+        }
+
+        /* History panel */
+        .history-panel {
+            position: fixed;
+            right: -400px;
+            top: 60px;
+            width: 400px;
+            height: calc(100vh - 60px);
+            background: white;
+            box-shadow: -2px 0 10px rgba(0,0,0,0.1);
+            transition: right 0.3s;
+            z-index: 50;
+            overflow-y: auto;
+            padding: 20px;
+        }
+
+        .history-panel.open { right: 0; }
+
+        .history-panel h3 {
+            font-size: 1.1em;
+            margin-bottom: 15px;
+            color: #333;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .history-entry {
+            padding: 10px;
+            border-left: 3px solid #667eea;
+            background: #f8f9ff;
+            margin-bottom: 10px;
+            border-radius: 0 6px 6px 0;
+            font-size: 0.85em;
+        }
+
+        .history-entry .time { color: #999; font-size: 0.8em; }
+        .history-entry .param { color: #667eea; font-weight: 600; }
+        .history-entry .old { color: #e53935; text-decoration: line-through; }
+        .history-entry .new { color: #4caf50; font-weight: 600; }
+
+        /* Toast */
+        .toast {
+            position: fixed;
+            bottom: 30px;
+            right: 30px;
+            padding: 12px 24px;
+            background: #333;
+            color: white;
+            border-radius: 8px;
+            font-size: 0.9em;
+            opacity: 0;
+            transition: opacity 0.3s;
+            z-index: 200;
+        }
+
+        .toast.show { opacity: 1; }
+        .toast.success { background: #4caf50; }
+        .toast.error { background: #e53935; }
+
+        /* Unsaved changes bar */
+        .unsaved-bar {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: #ff9800;
+            color: white;
+            padding: 10px 30px;
+            display: none;
+            justify-content: space-between;
+            align-items: center;
+            z-index: 100;
+            font-size: 0.9em;
+        }
+
+        .unsaved-bar.show { display: flex; }
+
+        .unsaved-bar button {
+            padding: 6px 16px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: 500;
+            margin-left: 8px;
+        }
+
+        .unsaved-bar .btn-discard { background: rgba(255,255,255,0.2); color: white; }
+        .unsaved-bar .btn-apply { background: white; color: #ff9800; }
+    </style>
+</head>
+<body>
+    <div class="topbar">
+        <div>
+            <h1>Calibration Admin</h1>
+            <span class="subtitle">Eye Test Engine Configuration</span>
+        </div>
+        <div class="topbar-actions">
+            <div class="search-bar">
+                <input type="text" id="searchInput" placeholder="Search parameters..." oninput="filterParams()">
+            </div>
+            <button class="btn btn-history" onclick="toggleHistory()">History</button>
+            <button class="btn btn-reset" onclick="resetDefaults()">Reset to Defaults</button>
+            <button class="btn btn-save" id="btnSave" onclick="saveCalibration()" disabled>Save Changes</button>
+        </div>
+    </div>
+
+    <div class="layout">
+        <nav class="sidebar" id="sidebar"></nav>
+        <main class="content" id="content"></main>
+    </div>
+
+    <div class="history-panel" id="historyPanel">
+        <h3>
+            Change History
+            <span style="cursor:pointer;font-size:1.2em" onclick="toggleHistory()">&times;</span>
+        </h3>
+        <div id="historyList"></div>
+    </div>
+
+    <div class="unsaved-bar" id="unsavedBar">
+        <span><strong id="changeCount">0</strong> unsaved changes</span>
+        <div>
+            <button class="btn-discard" onclick="discardChanges()">Discard</button>
+            <button class="btn-apply" onclick="saveCalibration()">Save All</button>
+        </div>
+    </div>
+
+    <div class="toast" id="toast"></div>
+
+    <script>
+        // Section metadata with descriptions and icons
+        const sectionMeta = {
+            SYSTEM: { label: 'System', desc: 'Version and profile', icon: '\u2699' },
+            PATIENT_TO_DV: { label: 'Patient Classification', desc: 'Age buckets, usage thresholds', icon: '\ud83d\udc64' },
+            MISMATCH_THRESHOLDS: { label: 'Mismatch Detection', desc: 'AR vs Lenso tolerances', icon: '\u26a0\ufe0f' },
+            START_POLICY: { label: 'Start Policy', desc: 'Which Rx source to use', icon: '\ud83c\udfaf' },
+            DISTANCE_TARGET: { label: 'Distance Target', desc: 'Target visual acuity', icon: '\ud83d\udc41\ufe0f' },
+            ENDPOINT_BIAS: { label: 'Endpoint Bias', desc: 'Final sphere adjustment', icon: '\u2696\ufe0f' },
+            STEP_POLICY: { label: 'Step Sizes', desc: 'SPH and CYL step amounts', icon: '\ud83d\udcca' },
+            AXIS_POLICY: { label: 'Axis Refinement', desc: 'JCC axis parameters', icon: '\ud83d\udd04' },
+            CYL_POLICY: { label: 'Cylinder Policy', desc: 'JCC power parameters', icon: '\ud83d\udd27' },
+            FOGGING: { label: 'Fogging Protocol', desc: 'Fog amounts and clearance', icon: '\ud83c\udf2b\ufe0f' },
+            DUOCHROME: { label: 'Duochrome', desc: 'Red-green balance', icon: '\ud83d\udfe2' },
+            BINOC_BALANCE: { label: 'Binocular Balance', desc: 'Binocular sphere balance', icon: '\ud83d\udc53' },
+            NEAR_WORKFLOW: { label: 'Near Workflow', desc: 'ADD determination', icon: '\ud83d\udcd6' },
+            ESCALATION: { label: 'Safety & Escalation', desc: 'Drift limits, anomaly triggers', icon: '\ud83d\udea8' },
+            PHASE_TIMEOUTS: { label: 'Phase Timeouts', desc: 'Max iterations per phase', icon: '\u23f1\ufe0f' },
+            CHARTS: { label: 'Chart Ladder', desc: 'Distance chart sequence', icon: '\ud83d\udcc8' },
+        };
+
+        // Parameter metadata for units and risk classification
+        const paramUnits = {
+            re_sph_medium: 'D', re_sph_large: 'D', re_cyl_medium: 'D', re_cyl_large: 'D',
+            re_axis_medium: 'deg', re_axis_large: 'deg',
+            le_sph_medium: 'D', le_sph_large: 'D', le_cyl_medium: 'D', le_cyl_large: 'D',
+            le_axis_medium: 'deg', le_axis_large: 'deg',
+            hybrid_rounding_step: 'D',
+            conservative_sph_step: 'D', standard_sph_step: 'D', aggressive_sph_step: 'D',
+            conservative_cyl_step: 'D', standard_cyl_step: 'D', aggressive_cyl_step: 'D',
+            axis_start_step: 'deg', axis_reversal_step_1: 'deg', axis_reversal_step_2: 'deg',
+            axis_tol_strict: 'deg', axis_tol_normal: 'deg', axis_tol_relaxed: 'deg',
+            cyl_tol_conservative: 'D', cyl_tol_standard: 'D', cyl_tol_aggressive: 'D',
+            no_fog_amount: 'D', standard_fog_amount: 'D', strong_fog_amount: 'D',
+            duochrome_red_step: 'D', duochrome_green_step: 'D',
+            bino_balance_step: 'D', near_add_step: 'D',
+            undercorrect_step: 'D', overcorrect_step: 'D',
+            max_delta_start_conservative: 'D', max_delta_start_standard: 'D',
+            max_delta_start_aggressive: 'D', max_delta_ar_standard: 'D',
+            max_delta_ar_high_medical: 'D',
+            age_child_max: 'yrs', age_presbyope_min: 'yrs',
+            driving_hours_high: 'h', screen_time_high: 'h', near_work_hours_high: 'h',
+            last_eye_test_uncertain_months: 'mo', add_possible_min_age: 'yrs',
+            add_likely_min_age: 'yrs',
+        };
+
+        let calibration = {};
+        let originalCalibration = {};
+        let changes = {};
+        let history = [];
+
+        // Load calibration data
+        async function loadCalibration() {
+            try {
+                const resp = await fetch('/api/calibration');
+                if (resp.ok) {
+                    calibration = await resp.json();
+                    originalCalibration = JSON.parse(JSON.stringify(calibration));
+                    renderAll();
+                } else {
+                    showToast('Failed to load calibration', 'error');
+                }
+            } catch (e) {
+                showToast('Server connection failed', 'error');
+            }
+        }
+
+        async function loadHistory() {
+            try {
+                const resp = await fetch('/api/calibration/history');
+                if (resp.ok) {
+                    history = await resp.json();
+                    renderHistory();
+                }
+            } catch (e) { /* ignore */ }
+        }
+
+        function renderAll() {
+            renderSidebar();
+            renderContent();
+        }
+
+        function renderSidebar() {
+            const sidebar = document.getElementById('sidebar');
+            sidebar.innerHTML = '';
+            for (const [section, meta] of Object.entries(sectionMeta)) {
+                if (!(section in calibration)) continue;
+                const params = calibration[section];
+                const count = typeof params === 'object' ? Object.keys(params).length : 0;
+                const item = document.createElement('div');
+                item.className = 'sidebar-item';
+                item.id = `nav_${section}`;
+                item.innerHTML = `
+                    <span>${meta.icon || ''}</span>
+                    <span>${meta.label}</span>
+                    <span class="count">${count}</span>
+                `;
+                item.onclick = () => scrollToSection(section);
+                sidebar.appendChild(item);
+            }
+        }
+
+        function renderContent() {
+            const content = document.getElementById('content');
+            content.innerHTML = '';
+            for (const [section, meta] of Object.entries(sectionMeta)) {
+                if (!(section in calibration)) continue;
+                const params = calibration[section];
+                if (typeof params !== 'object') continue;
+
+                const card = document.createElement('div');
+                card.className = 'section-card';
+                card.id = `section_${section}`;
+
+                const header = document.createElement('div');
+                header.className = 'section-header';
+                header.innerHTML = `
+                    <h2>${meta.icon || ''} ${meta.label} <small style="color:#999;font-weight:normal">${meta.desc}</small></h2>
+                    <span class="arrow open">\u25BC</span>
+                `;
+                header.onclick = () => {
+                    const body = card.querySelector('.section-body');
+                    const arrow = header.querySelector('.arrow');
+                    body.classList.toggle('collapsed');
+                    arrow.classList.toggle('open');
+                };
+
+                const body = document.createElement('div');
+                body.className = 'section-body';
+
+                for (const [key, value] of Object.entries(params)) {
+                    const row = document.createElement('div');
+                    row.className = 'param-row';
+                    row.dataset.section = section;
+                    row.dataset.key = key;
+                    row.dataset.searchText = `${section} ${key} ${meta.label}`.toLowerCase();
+
+                    const unit = paramUnits[key] || '';
+                    const risk = getRiskLevel(section, key, value);
+                    const inputHtml = createInput(section, key, value);
+
+                    row.innerHTML = `
+                        <span class="param-name">${key}</span>
+                        <div class="param-value">${inputHtml} <span class="param-unit">${unit}</span></div>
+                        <span class="param-desc">${getParamDescription(section, key)}</span>
+                        <span class="param-risk ${risk}"></span>
+                    `;
+
+                    body.appendChild(row);
+                }
+
+                card.appendChild(header);
+                card.appendChild(body);
+                content.appendChild(card);
+            }
+
+            // Add input change listeners
+            content.querySelectorAll('input, select').forEach(el => {
+                el.addEventListener('change', (e) => onParamChange(e.target));
+                el.addEventListener('input', (e) => {
+                    if (e.target.type === 'number' || e.target.type === 'text') {
+                        onParamChange(e.target);
+                    }
+                });
+            });
+        }
+
+        function createInput(section, key, value) {
+            if (typeof value === 'boolean') {
+                return `<select data-section="${section}" data-key="${key}">
+                    <option value="true" ${value ? 'selected' : ''}>true</option>
+                    <option value="false" ${!value ? 'selected' : ''}>false</option>
+                </select>`;
+            }
+            if (typeof value === 'number') {
+                const step = Number.isInteger(value) ? 1 : 0.25;
+                return `<input type="number" step="${step}" value="${value}"
+                        data-section="${section}" data-key="${key}" data-original="${value}">`;
+            }
+            return `<input type="text" value="${value}"
+                    data-section="${section}" data-key="${key}" data-original="${value}">`;
+        }
+
+        function onParamChange(el) {
+            const section = el.dataset.section;
+            const key = el.dataset.key;
+            const original = el.dataset.original;
+            let newVal = el.value;
+
+            // Type conversion
+            if (el.type === 'number') newVal = parseFloat(newVal);
+            if (el.tagName === 'SELECT' && (newVal === 'true' || newVal === 'false')) {
+                newVal = newVal === 'true';
+            }
+
+            const changeKey = `${section}.${key}`;
+
+            if (String(newVal) !== String(original)) {
+                changes[changeKey] = { section, key, oldVal: original, newVal };
+                el.classList.add('changed');
+                el.closest('.param-row').classList.add('modified');
+            } else {
+                delete changes[changeKey];
+                el.classList.remove('changed');
+                el.closest('.param-row').classList.remove('modified');
+            }
+
+            updateChangeCount();
+        }
+
+        function updateChangeCount() {
+            const count = Object.keys(changes).length;
+            document.getElementById('changeCount').textContent = count;
+            document.getElementById('btnSave').disabled = count === 0;
+            document.getElementById('unsavedBar').classList.toggle('show', count > 0);
+        }
+
+        async function saveCalibration() {
+            const count = Object.keys(changes).length;
+            if (count === 0) return;
+
+            try {
+                for (const [changeKey, change] of Object.entries(changes)) {
+                    const resp = await fetch(
+                        `/api/calibration/${change.section}/${change.key}`,
+                        {
+                            method: 'PUT',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ value: change.newVal })
+                        }
+                    );
+                    if (!resp.ok) {
+                        const err = await resp.json();
+                        showToast(`Failed to save ${change.key}: ${err.error}`, 'error');
+                        return;
+                    }
+                }
+
+                showToast(`${count} parameter(s) saved successfully`, 'success');
+                changes = {};
+                updateChangeCount();
+
+                // Reload to get fresh state
+                await loadCalibration();
+                await loadHistory();
+
+                // Remove changed indicators
+                document.querySelectorAll('.changed').forEach(el => el.classList.remove('changed'));
+                document.querySelectorAll('.modified').forEach(el => el.classList.remove('modified'));
+            } catch (e) {
+                showToast('Save failed: ' + e.message, 'error');
+            }
+        }
+
+        function discardChanges() {
+            changes = {};
+            loadCalibration();
+            updateChangeCount();
+        }
+
+        async function resetDefaults() {
+            if (!confirm('Reset ALL calibration parameters to factory defaults? This cannot be undone.')) {
+                return;
+            }
+            try {
+                const resp = await fetch('/api/calibration/reset', { method: 'POST' });
+                if (resp.ok) {
+                    showToast('Calibration reset to defaults', 'success');
+                    changes = {};
+                    updateChangeCount();
+                    await loadCalibration();
+                    await loadHistory();
+                } else {
+                    showToast('Reset failed', 'error');
+                }
+            } catch (e) {
+                showToast('Reset failed: ' + e.message, 'error');
+            }
+        }
+
+        function filterParams() {
+            const query = document.getElementById('searchInput').value.toLowerCase();
+            document.querySelectorAll('.param-row').forEach(row => {
+                const text = row.dataset.searchText || '';
+                const name = row.querySelector('.param-name')?.textContent || '';
+                const match = !query || text.includes(query) || name.includes(query);
+                row.classList.toggle('hidden', !match);
+            });
+        }
+
+        function scrollToSection(section) {
+            const el = document.getElementById(`section_${section}`);
+            if (el) {
+                el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                // Highlight sidebar
+                document.querySelectorAll('.sidebar-item').forEach(s => s.classList.remove('active'));
+                document.getElementById(`nav_${section}`)?.classList.add('active');
+            }
+        }
+
+        function toggleHistory() {
+            document.getElementById('historyPanel').classList.toggle('open');
+        }
+
+        function renderHistory() {
+            const list = document.getElementById('historyList');
+            if (!history.length) {
+                list.innerHTML = '<p style="color:#999;font-size:0.9em">No changes recorded yet</p>';
+                return;
+            }
+            list.innerHTML = history.slice().reverse().map(entry => `
+                <div class="history-entry">
+                    <div class="time">${new Date(entry.timestamp).toLocaleString()}</div>
+                    <div><span class="param">${entry.section}.${entry.key}</span></div>
+                    <div>
+                        <span class="old">${entry.old_value}</span> &rarr;
+                        <span class="new">${entry.new_value}</span>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function getRiskLevel(section, key, value) {
+            // Classify risk level for visual indicator
+            if (key.includes('aggressive') || key.includes('large') || key.includes('strong')) return 'risk-aggressive';
+            if (key.includes('conservative') || key.includes('strict') || key.includes('immediate')) return 'risk-caution';
+            return 'risk-safe';
+        }
+
+        function getParamDescription(section, key) {
+            // Return inline description from the calibration YAML comments
+            const descriptions = {
+                age_child_max: 'Max age for Child bucket',
+                age_presbyope_min: 'Min age for Presbyope bucket',
+                driving_hours_high: 'Driving threshold for High priority',
+                screen_time_high: 'Screen time threshold for High near',
+                near_work_hours_high: 'Near work threshold for High near',
+                last_eye_test_uncertain_months: 'Months for Uncertain stability',
+                add_possible_min_age: 'Min age for ADD = Possible',
+                add_likely_min_age: 'Min age for ADD = Likely',
+                axis_start_step: 'Initial JCC axis step',
+                axis_reversal_step_1: 'After first reversal',
+                axis_reversal_step_2: 'After second reversal',
+                duochrome_equal_confirmations: 'Consecutive EQUAL for convergence',
+                bino_balance_step: 'SPH adjustment per imbalance',
+                near_add_step: 'ADD increment per step',
+                max_delta_start_conservative: 'Max drift (Conservative)',
+                max_delta_start_standard: 'Max drift (Standard)',
+                max_delta_start_aggressive: 'Max drift (Aggressive)',
+            };
+            return descriptions[key] || '';
+        }
+
+        function showToast(msg, type = '') {
+            const t = document.getElementById('toast');
+            t.textContent = msg;
+            t.className = 'toast show ' + type;
+            setTimeout(() => t.className = 'toast', 3000);
+        }
+
+        // Scroll spy for sidebar active state
+        let ticking = false;
+        document.querySelector('.content')?.addEventListener('scroll', () => {
+            if (!ticking) {
+                window.requestAnimationFrame(() => {
+                    const sections = document.querySelectorAll('.section-card');
+                    sections.forEach(s => {
+                        const rect = s.getBoundingClientRect();
+                        if (rect.top < 200 && rect.bottom > 100) {
+                            const id = s.id.replace('section_', '');
+                            document.querySelectorAll('.sidebar-item').forEach(nav => nav.classList.remove('active'));
+                            document.getElementById(`nav_${id}`)?.classList.add('active');
+                        }
+                    });
+                    ticking = false;
+                });
+                ticking = true;
+            }
+        });
+
+        // Initialize
+        loadCalibration();
+        loadHistory();
+    </script>
+</body>
+</html>

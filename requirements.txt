@@ -1,0 +1,7 @@
+flask>=3.0
+flask-cors>=4.0
+pyyaml>=6.0
+python-dotenv>=1.0
+supabase>=1.0
+# Optional: save session CSVs to Supabase Storage (see docs/REMOTE_STORAGE_SETUP.md)
+# pip install supabase
