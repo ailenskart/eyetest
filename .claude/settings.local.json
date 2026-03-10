@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python3 -c \":*)",
+      "Bash(pip3 install openpyxl)",
+      "Bash(pip3 install openpyxl --break-system-packages --user)"
+    ]
+  }
+}

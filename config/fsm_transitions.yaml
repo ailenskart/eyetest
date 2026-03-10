@@ -1,0 +1,258 @@
+# =============================================================================
+# FSM Transition Table
+# =============================================================================
+# Defines state transitions, guard conditions, and timeout behavior.
+# Each state can have multiple transition rules evaluated in order.
+# First matching guard condition determines the next state.
+# =============================================================================
+
+states:
+  A:
+    description: "Distance Vision Baseline"
+    phase_type: DIST_BASELINE
+    eye: BIN
+    entry_actions:
+      - "Initialize binocular chart and capture baseline VA"
+    transitions:
+      - guard: "dv_requires_optom_review == true"
+        next_state: ESCALATE
+      - guard: "chart_idx >= target_chart_idx and response == READABLE"
+        next_state: B
+      - guard: "response == READABLE"
+        next_state: A   # advance chart
+      - guard: "response in [NOT_READABLE, BLURRY]"
+        next_state: A   # stay on chart
+    timeout_bucket: Fast
+    timeout_action: ESCALATE
+
+  B:
+    description: "Right Eye Coarse Refraction"
+    phase_type: COARSE_SPHERE
+    eye: RE
+    entry_actions:
+      - "Occlude LE and load dv_start_rx_RE values"
+      - "Apply fogging if dv_fogging_policy != No_Fog"
+    transitions:
+      - guard: "VA_RE >= target_va"
+        next_state: E
+      - guard: "comparisons > limit"
+        next_state: ESCALATE
+      - guard: "response in [BLURRY, NOT_READABLE]"
+        next_state: B   # adjust SPH
+      - guard: "response == READABLE"
+        next_state: B   # clear fog or check convergence
+    timeout_bucket: Normal
+    timeout_action: ACCEPT_BEST
+
+  E:
+    description: "JCC Axis Right"
+    phase_type: JCC_AXIS
+    eye: RE
+    entry_actions:
+      - "Start axis refinement"
+    transitions:
+      - guard: "axis_converged"
+        next_state: F
+      - guard: "comparisons > limit"
+        next_state: ESCALATE
+      - guard: "response in [BETTER_1, BETTER_2]"
+        next_state: E   # adjust axis
+      - guard: "response in [SAME, CANT_TELL]"
+        next_state: F   # converged
+    timeout_bucket: Normal
+    timeout_action: ACCEPT_BEST
+
+  F:
+    description: "JCC Power Right"
+    phase_type: JCC_POWER
+    eye: RE
+    entry_actions:
+      - "Refine cylinder power"
+    transitions:
+      - guard: "cyl_converged"
+        next_state: G
+      - guard: "comparisons > limit"
+        next_state: ESCALATE
+      - guard: "response in [BETTER_1, BETTER_2]"
+        next_state: F   # adjust CYL
+      - guard: "response in [SAME, CANT_TELL]"
+        next_state: F   # increment same_streak, check convergence
+    timeout_bucket: Normal
+    timeout_action: ACCEPT_BEST
+
+  G:
+    description: "Duochrome Right"
+    phase_type: DUOCHROME
+    eye: RE
+    entry_actions:
+      - "Perform red-green balance"
+    transitions:
+      - guard: "duochrome_balanced"
+        next_state: D
+      - guard: "comparisons > limit"
+        next_state: D   # accept best and move on
+      - guard: "response in [RED_CLEARER, GREEN_CLEARER]"
+        next_state: G   # adjust SPH
+      - guard: "response in [EQUAL, CANT_TELL]"
+        next_state: G   # increment equal_streak, check convergence
+    timeout_bucket: Normal
+    timeout_action: ACCEPT_BEST
+
+  D:
+    description: "Left Eye Coarse Refraction"
+    phase_type: COARSE_SPHERE
+    eye: LE
+    entry_actions:
+      - "Occlude RE and load dv_start_rx_LE values"
+      - "Apply fogging if dv_fogging_policy != No_Fog"
+    transitions:
+      - guard: "VA_LE >= target_va"
+        next_state: H
+      - guard: "comparisons > limit"
+        next_state: ESCALATE
+      - guard: "response in [BLURRY, NOT_READABLE]"
+        next_state: D   # adjust SPH
+      - guard: "response == READABLE"
+        next_state: D   # clear fog or check convergence
+    timeout_bucket: Normal
+    timeout_action: ACCEPT_BEST
+
+  H:
+    description: "JCC Axis Left"
+    phase_type: JCC_AXIS
+    eye: LE
+    entry_actions:
+      - "Start axis refinement"
+    transitions:
+      - guard: "axis_converged"
+        next_state: I
+      - guard: "comparisons > limit"
+        next_state: ESCALATE
+      - guard: "response in [BETTER_1, BETTER_2]"
+        next_state: H
+      - guard: "response in [SAME, CANT_TELL]"
+        next_state: I
+    timeout_bucket: Normal
+    timeout_action: ACCEPT_BEST
+
+  I:
+    description: "JCC Power Left"
+    phase_type: JCC_POWER
+    eye: LE
+    entry_actions:
+      - "Refine cylinder power"
+    transitions:
+      - guard: "cyl_converged"
+        next_state: J
+      - guard: "comparisons > limit"
+        next_state: ESCALATE
+      - guard: "response in [BETTER_1, BETTER_2]"
+        next_state: I
+      - guard: "response in [SAME, CANT_TELL]"
+        next_state: I
+    timeout_bucket: Normal
+    timeout_action: ACCEPT_BEST
+
+  J:
+    description: "Duochrome Left"
+    phase_type: DUOCHROME
+    eye: LE
+    entry_actions:
+      - "Perform red-green balance"
+    transitions:
+      - guard: "duochrome_balanced"
+        next_state: K
+      - guard: "comparisons > limit"
+        next_state: K
+      - guard: "response in [RED_CLEARER, GREEN_CLEARER]"
+        next_state: J
+      - guard: "response in [EQUAL, CANT_TELL]"
+        next_state: J
+    timeout_bucket: Normal
+    timeout_action: ACCEPT_BEST
+
+  K:
+    description: "Binocular Balance"
+    phase_type: BINOC_BALANCE
+    eye: BIN
+    entry_actions:
+      - "Perform binocular sphere balance"
+    transitions:
+      - guard: "balance_converged and dv_add_expected == None"
+        next_state: END
+      - guard: "balance_converged and dv_add_expected != None"
+        next_state: P
+      - guard: "response in [TOP_CLEARER, BOTTOM_CLEARER]"
+        next_state: K
+      - guard: "response in [SAME, CANT_TELL]"
+        next_state: K   # increment same_streak
+    timeout_bucket: Normal
+    timeout_action: ACCEPT_BEST
+
+  P:
+    description: "Near ADD Right"
+    phase_type: NEAR_ADD
+    eye: RE
+    entry_actions:
+      - "Determine ADD for right eye"
+    transitions:
+      - guard: "add_converged"
+        next_state: Q
+      - guard: "response == READABLE"
+        next_state: Q
+      - guard: "response in [BLURRY, NOT_READABLE]"
+        next_state: P   # increment ADD
+    timeout_bucket: Normal
+    timeout_action: ACCEPT_BEST
+
+  Q:
+    description: "Near ADD Left"
+    phase_type: NEAR_ADD
+    eye: LE
+    entry_actions:
+      - "Determine ADD for left eye"
+    transitions:
+      - guard: "add_converged"
+        next_state: R
+      - guard: "response == READABLE"
+        next_state: R
+      - guard: "response in [BLURRY, NOT_READABLE]"
+        next_state: Q
+    timeout_bucket: Normal
+    timeout_action: ACCEPT_BEST
+
+  R:
+    description: "Near Binocular Verify"
+    phase_type: NEAR_BINOC
+    eye: BIN
+    entry_actions:
+      - "Binocular near verification"
+    transitions:
+      - guard: "response == TARGET_OK"
+        next_state: END
+      - guard: "response in [NOT_CLEAR, SAME, CANT_TELL]"
+        next_state: R
+    timeout_bucket: Normal
+    timeout_action: ACCEPT_BEST
+
+  END:
+    description: "End"
+    phase_type: END
+    eye: BIN
+    entry_actions:
+      - "Finalize prescription and save results"
+    transitions: []
+    timeout_bucket: null
+    timeout_action: null
+
+  ESCALATE:
+    description: "Escalation"
+    phase_type: ESCALATE
+    eye: BIN
+    entry_actions:
+      - "Pause test and alert optometrist"
+      - "Log escalation reason"
+      - "Store ACCEPT_BEST values as fallback"
+    transitions: []
+    timeout_bucket: null
+    timeout_action: null

@@ -1,0 +1,94 @@
+# =============================================================================
+# Phase UI Map
+# =============================================================================
+# Maps phase types to their stimulus, chart, response type, and allowed values.
+# Used by the frontend to render correct UI for each phase.
+# =============================================================================
+
+phases:
+  DIST_BASELINE:
+    stimulus_type: DIST_VA
+    chart_type: SNELLEN_FEET
+    response_type: READABILITY
+    allowed_values:
+      - READABLE
+      - NOT_READABLE
+      - BLURRY
+    question: "Can you read this clearly?"
+
+  COARSE_SPHERE:
+    stimulus_type: COARSE_SPH
+    chart_type: SNELLEN_FEET
+    response_type: READABILITY
+    allowed_values:
+      - READABLE
+      - NOT_READABLE
+      - BLURRY
+    question: "Can you read this clearly?"
+
+  JCC_AXIS:
+    stimulus_type: JCC_AXIS
+    chart_type: DOT_CHART_JCC
+    response_type: COMPARE_1_2
+    allowed_values:
+      - BETTER_1
+      - BETTER_2
+      - SAME
+      - CANT_TELL
+    question: "Which is clearer, 1 or 2?"
+
+  JCC_POWER:
+    stimulus_type: JCC_POWER
+    chart_type: DOT_CHART_JCC
+    response_type: COMPARE_1_2
+    allowed_values:
+      - BETTER_1
+      - BETTER_2
+      - SAME
+      - CANT_TELL
+    question: "Which is clearer, 1 or 2?"
+
+  DUOCHROME:
+    stimulus_type: DUOCHROME
+    chart_type: RED_GREEN_DUOCHROME
+    response_type: COLOR_CHOICE
+    allowed_values:
+      - RED_CLEARER
+      - GREEN_CLEARER
+      - EQUAL
+      - CANT_TELL
+    question: "Which side is clearer, red or green?"
+
+  BINOC_BALANCE:
+    stimulus_type: BINOC_BALANCE
+    chart_type: POLARIZED_BALANCE
+    response_type: TOP_BOTTOM
+    allowed_values:
+      - TOP_CLEARER
+      - BOTTOM_CLEARER
+      - SAME
+      - CANT_TELL
+    question: "Which line is clearer, top or bottom?"
+
+  NEAR_ADD:
+    stimulus_type: NEAR_VA
+    chart_type: NEAR_TEXT
+    response_type: NEAR_READABILITY
+    allowed_values:
+      - READABLE
+      - NOT_READABLE
+      - BLURRY
+      - SAME
+      - CANT_TELL
+    question: "Can you read this clearly at near?"
+
+  NEAR_BINOC:
+    stimulus_type: NEAR_BINOC
+    chart_type: NEAR_TEXT
+    response_type: NEAR_BINOC
+    allowed_values:
+      - TARGET_OK
+      - NOT_CLEAR
+      - SAME
+      - CANT_TELL
+    question: "Is this comfortable to read?"

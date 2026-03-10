@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "eye-test-api",
+      "runtimeExecutable": "./venv/bin/python",
+      "runtimeArgs": ["api_server.py"],
+      "port": 5050
+    }
+  ]
+}

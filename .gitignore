@@ -1,4 +1,28 @@
-Logging_PhoropterUI/
-node_modules/
-package-lock.json
-package.json
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+venv/
+.env
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Excel temp
+~$*.xlsx
+
+# Output
+eye_test_output/
+*.csv
+!tests/*.csv
+
+# Claude local
+.claude/plans/
