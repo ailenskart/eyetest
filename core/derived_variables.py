@@ -83,10 +83,14 @@ class DerivedVariables:
     dv_fogging_amount_D: float = 0.0
     dv_fogging_clearance_mode: str = "StepDown_0.25"
     dv_fogging_required_confirmation: str = "Low"     # Low / Medium / High
+    dv_fogging_confirm_count: int = 1                # Actual count: Low=1, Medium=2, High=3
 
     # Axis / Cylinder
     dv_axis_step_policy: str = "Normal"               # Normal / Fine
     dv_duochrome_max_flips: int = 3
+
+    # JCC power convergence
+    dv_jcc_power_same_required: int = 1              # SAME confirmations needed for JCC power
 
     # Near test flag
     dv_near_test_required: bool = False
@@ -445,6 +449,7 @@ def compute_derived_variables(
 
     # -------------------------------------------------------------------------
     # 30. dv_fogging_amount_D
+    # Spec: Strong→1.00D; Standard→0.75D; No fog→0
     # -------------------------------------------------------------------------
     if dv.dv_fogging_policy == "Strong_Fog":
         dv.dv_fogging_amount_D = cfg_fog.get("strong_fog_amount", 1.0)
@@ -470,17 +475,34 @@ def compute_derived_variables(
             "stepdown_mode_standard", "StepDown_0.50_then_0.25"
         )
     else:
-        dv.dv_fogging_clearance_mode = "StepDown_0.25"
+        dv.dv_fogging_clearance_mode = cfg_fog.get(
+            "stepdown_mode_no_fog", "StepDown_0.25"
+        )
 
     # -------------------------------------------------------------------------
     # 32. dv_fogging_required_confirmation
+    # Maps confidence level to actual confirmation count from calibration
     # -------------------------------------------------------------------------
     if dv.dv_confidence_requirement == "High":
         dv.dv_fogging_required_confirmation = "High"
+        dv.dv_fogging_confirm_count = int(cfg_fog.get("fog_confirm_high", 3))
     elif dv.dv_confidence_requirement == "Medium":
         dv.dv_fogging_required_confirmation = "Medium"
+        dv.dv_fogging_confirm_count = int(cfg_fog.get("fog_confirm_medium", 2))
     else:
         dv.dv_fogging_required_confirmation = "Low"
+        dv.dv_fogging_confirm_count = int(cfg_fog.get("fog_confirm_low", 1))
+
+    # -------------------------------------------------------------------------
+    # 32b. dv_jcc_power_same_required
+    # Maps confidence requirement to JCC power SAME confirmation count
+    # -------------------------------------------------------------------------
+    if dv.dv_confidence_requirement == "High":
+        dv.dv_jcc_power_same_required = int(cfg_cyl.get("jcc_power_same_high", 2))
+    elif dv.dv_confidence_requirement == "Medium":
+        dv.dv_jcc_power_same_required = int(cfg_cyl.get("jcc_power_same_medium", 2))
+    else:
+        dv.dv_jcc_power_same_required = int(cfg_cyl.get("jcc_power_same_low", 1))
 
     # -------------------------------------------------------------------------
     # 33. dv_axis_step_policy
@@ -493,18 +515,20 @@ def compute_derived_variables(
 
     # -------------------------------------------------------------------------
     # 34. dv_duochrome_max_flips
+    # Spec: Stable→2 flips; Normal→3; Unstable→4
+    # Maps directly from stability_level, not branching_guardrails
     # -------------------------------------------------------------------------
-    if dv.dv_branching_guardrails == "Strict":
+    if dv.dv_stability_level == "Stable":
         dv.dv_duochrome_max_flips = cfg_duo.get(
-            "duochrome_max_flips_strict", 3
+            "duochrome_max_flips_stable", 2
         )
-    elif dv.dv_branching_guardrails == "Relaxed":
+    elif dv.dv_stability_level == "Unstable":
         dv.dv_duochrome_max_flips = cfg_duo.get(
-            "duochrome_max_flips_relaxed", 5
+            "duochrome_max_flips_unstable", 4
         )
     else:
         dv.dv_duochrome_max_flips = cfg_duo.get(
-            "duochrome_max_flips_normal", 4
+            "duochrome_max_flips_normal", 3
         )
 
     # -------------------------------------------------------------------------

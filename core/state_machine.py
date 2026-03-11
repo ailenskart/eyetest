@@ -134,6 +134,14 @@ class PhaseState:
     # Chart state
     chart_idx: int = 0               # Current chart in the ladder
 
+    # VA tracking: maps eye → best chart index successfully read
+    va_re: int = 0                   # Best chart idx read by RE (0 = worst)
+    va_le: int = 0                   # Best chart idx read by LE (0 = worst)
+    va_bin: int = 0                  # Best chart idx read binocularly
+
+    # Coarse sphere VA tracking: consecutive readable at current chart
+    coarse_readable_streak: int = 0
+
     # Comparison counter (total interactions within this state)
     comparisons: int = 0
 
@@ -158,6 +166,7 @@ class PhaseState:
         self.balance_same_streak = 0
         self.balance_converged = False
         self.add_converged = False
+        self.coarse_readable_streak = 0
 
 
 # =============================================================================
@@ -340,6 +349,9 @@ class FSMStateMachine:
         self.phase_state.step_count += 1
         self.phase_state.comparisons += 1
 
+        # Process the response: apply clinical adjustments to lens values
+        self._process_response(response)
+
         # Log the step
         self._log_step(response)
 
@@ -427,6 +439,383 @@ class FSMStateMachine:
         return self._enter_state("ESCALATE")
 
     # -------------------------------------------------------------------------
+    # Response Processing: Clinical Adjustments per Phase
+    # -------------------------------------------------------------------------
+
+    def _process_response(self, response: str):
+        """
+        Apply clinical adjustments to lens values based on the patient response.
+        This is the core intelligence layer — it modifies PhaseState based on
+        the phase type, response, and derived variables / calibration params.
+        """
+        phase_type = self.current_phase_type
+        dv = self.derived_vars
+        ps = self.phase_state
+        cal = self.calibration
+
+        if phase_type == "DIST_BASELINE":
+            self._process_dist_baseline(response)
+        elif phase_type == "COARSE_SPHERE":
+            self._process_coarse_sphere(response)
+        elif phase_type == "JCC_AXIS":
+            self._process_jcc_axis(response)
+        elif phase_type == "JCC_POWER":
+            self._process_jcc_power(response)
+        elif phase_type == "DUOCHROME":
+            self._process_duochrome(response)
+        elif phase_type == "BINOC_BALANCE":
+            self._process_binoc_balance(response)
+        elif phase_type == "NEAR_ADD":
+            self._process_near_add(response)
+        elif phase_type == "NEAR_BINOC":
+            self._process_near_binoc(response)
+
+    def _process_dist_baseline(self, response: str):
+        """
+        Distance Baseline (State A): Chart ladder progression.
+        Advance chart on READABLE, stay on NOT_READABLE/BLURRY.
+        Updates binocular VA tracking.
+        """
+        ps = self.phase_state
+        if response == "READABLE":
+            # Record that binocular vision can read this chart level
+            ps.va_bin = max(ps.va_bin, ps.chart_idx)
+            ps.chart_idx += 1
+
+    def _process_coarse_sphere(self, response: str):
+        """
+        Coarse Sphere (States B, D): Sphere refinement with fogging protocol.
+
+        Logic:
+        - BLURRY/NOT_READABLE: add minus SPH (step from calibration)
+        - READABLE:
+          - If fog_remaining > 0: clear fog step-by-step
+          - If fog cleared: check VA target for convergence
+        - Drift detection: escalate if delta from start exceeds max
+        """
+        ps = self.phase_state
+        dv = self.derived_vars
+        cal = self.calibration
+        eye = self.current_eye
+
+        # Get sphere step from step_size_policy
+        step_cfg = cal.get("STEP_POLICY", {})
+        policy = dv.dv_step_size_policy.lower()
+        sph_step = step_cfg.get(f"{policy}_sph_step", 0.25)
+
+        if response in ("BLURRY", "NOT_READABLE"):
+            # Add minus power (more myopic correction)
+            ps.coarse_readable_streak = 0
+            if eye == "RE":
+                ps.re_sph -= sph_step
+            else:
+                ps.le_sph -= sph_step
+
+        elif response == "READABLE":
+            # Track VA: patient can read the current chart
+            if eye == "RE":
+                ps.va_re = max(ps.va_re, ps.chart_idx)
+            else:
+                ps.va_le = max(ps.va_le, ps.chart_idx)
+
+            ps.coarse_readable_streak += 1
+
+            if ps.fog_remaining > 0:
+                # Clear fog step by step
+                clearance = dv.dv_fogging_clearance_mode
+                clear_step = self._get_fog_clear_step(clearance, ps.fog_remaining)
+
+                if eye == "RE":
+                    ps.re_sph -= clear_step
+                else:
+                    ps.le_sph -= clear_step
+
+                ps.fog_remaining = max(0.0, ps.fog_remaining - clear_step)
+                ps.fog_remaining = round(ps.fog_remaining, 2)
+
+                if ps.fog_remaining <= 0:
+                    ps.fog_phase = "cleared"
+                else:
+                    ps.fog_phase = "clearing"
+            # If fog cleared and READABLE, VA is at/near target
+
+        # Drift detection
+        if eye == "RE":
+            delta = abs(ps.re_sph - dv.dv_start_rx_RE_sph)
+        else:
+            delta = abs(ps.le_sph - dv.dv_start_rx_LE_sph)
+
+        if delta > dv.dv_max_delta_from_start_sph and dv.dv_anomaly_watch:
+            logger.warning(
+                f"Drift anomaly: {eye} SPH delta {delta:.2f}D "
+                f"exceeds max {dv.dv_max_delta_from_start_sph}D"
+            )
+
+    def _get_fog_clear_step(self, clearance_mode: str, fog_remaining: float) -> float:
+        """Determine fog clearance step size based on mode."""
+        if clearance_mode == "StepDown_0.25":
+            return 0.25
+        elif clearance_mode == "StepDown_0.50_then_0.25":
+            # Start with 0.50 steps, switch to 0.25 when remaining ≤ 0.50
+            return 0.50 if fog_remaining > 0.50 else 0.25
+        elif clearance_mode == "Early_Stop_if_Risk":
+            # Stop clearing early — accept current as best
+            return fog_remaining  # Clear all remaining in one step
+        else:
+            return 0.25
+
+    def _process_jcc_axis(self, response: str):
+        """
+        JCC Axis (States E, H): Axis refinement with reversal detection.
+
+        Logic:
+        - BETTER_1: adjust axis by +axis_step
+        - BETTER_2: adjust axis by -axis_step
+        - Reversal (direction change): halve step (5°→3°→1°)
+        - SAME/CANT_TELL: axis_converged = True
+        """
+        ps = self.phase_state
+        dv = self.derived_vars
+        cal = self.calibration
+        eye = self.current_eye
+        axis_cfg = cal.get("AXIS_POLICY", {})
+
+        if response in ("SAME", "CANT_TELL"):
+            ps.axis_converged = True
+            return
+
+        if response in ("BETTER_1", "BETTER_2"):
+            # Reversal detection
+            if ps.prev_axis_response and ps.prev_axis_response != response:
+                ps.axis_reversal_count += 1
+                # Reduce step on reversal
+                if ps.axis_reversal_count == 1:
+                    ps.axis_step = axis_cfg.get("axis_reversal_step_1", 3)
+                elif ps.axis_reversal_count >= 2:
+                    ps.axis_step = axis_cfg.get("axis_reversal_step_2", 1)
+
+                # Check convergence: if step ≤ tolerance, converged
+                if ps.axis_step <= dv.dv_axis_tolerance_deg:
+                    ps.axis_converged = True
+
+            ps.prev_axis_response = response
+
+            # Apply axis adjustment
+            direction = 1 if response == "BETTER_1" else -1
+            step = ps.axis_step * direction
+
+            if eye == "RE":
+                ps.re_axis = (ps.re_axis + step) % 180
+                if ps.re_axis == 0:
+                    ps.re_axis = 180
+            else:
+                ps.le_axis = (ps.le_axis + step) % 180
+                if ps.le_axis == 0:
+                    ps.le_axis = 180
+
+    def _process_jcc_power(self, response: str):
+        """
+        JCC Power (States F, I): Cylinder power refinement with SE compensation.
+
+        Logic:
+        - BETTER_1: increase CYL by +cyl_step (less negative)
+        - BETTER_2: decrease CYL by -cyl_step (more negative)
+        - SE compensation: for every 0.50D cumulative CYL change, adjust SPH ±0.25D
+        - SAME/CANT_TELL: increment same_streak → converged when streak ≥ threshold
+        """
+        ps = self.phase_state
+        dv = self.derived_vars
+        cal = self.calibration
+        eye = self.current_eye
+
+        step_cfg = cal.get("STEP_POLICY", {})
+        policy = dv.dv_step_size_policy.lower()
+        cyl_step = step_cfg.get(f"{policy}_cyl_step", 0.25)
+
+        if response in ("SAME", "CANT_TELL"):
+            ps.same_streak += 1
+            if ps.same_streak >= dv.dv_jcc_power_same_required:
+                ps.cyl_converged = True
+            return
+
+        # Reset same_streak on non-SAME response
+        ps.same_streak = 0
+
+        if response in ("BETTER_1", "BETTER_2"):
+            # BETTER_1 = more plus CYL (less negative), BETTER_2 = more minus CYL
+            direction = 1 if response == "BETTER_1" else -1
+            delta_cyl = cyl_step * direction
+
+            if eye == "RE":
+                ps.re_cyl += delta_cyl
+            else:
+                ps.le_cyl += delta_cyl
+
+            # Track cumulative CYL change for SE compensation
+            ps.cyl_cumulative_change += delta_cyl
+
+            # Spherical equivalent (SE) compensation:
+            # For every 0.50D CYL change, compensate SPH by ±0.25D
+            # (half the CYL change in opposite direction)
+            if abs(ps.cyl_cumulative_change) >= 0.50:
+                se_adjust = -0.25 if ps.cyl_cumulative_change > 0 else 0.25
+                if eye == "RE":
+                    ps.re_sph += se_adjust
+                else:
+                    ps.le_sph += se_adjust
+                # Reset cumulative tracker (keep remainder)
+                ps.cyl_cumulative_change -= 0.50 if ps.cyl_cumulative_change > 0 else -0.50
+
+    def _process_duochrome(self, response: str):
+        """
+        Duochrome (States G, J): Red-green balance with flip counting.
+
+        Logic:
+        - RED_CLEARER: SPH += red_step (-0.25D, more minus)
+        - GREEN_CLEARER: SPH += green_step (+0.25D, more plus)
+        - EQUAL/CANT_TELL: increment equal_streak → balanced when streak ≥ confirmations
+        - Flip detection (RED→GREEN or GREEN→RED): increment duo_flip
+        - Convergence: equal_streak ≥ threshold OR duo_flip ≥ max_flips
+        - Apply endpoint bias at convergence
+        """
+        ps = self.phase_state
+        dv = self.derived_vars
+        cal = self.calibration
+        eye = self.current_eye
+        duo_cfg = cal.get("DUOCHROME", {})
+
+        ps.duo_iter += 1
+
+        if response in ("EQUAL", "CANT_TELL"):
+            ps.equal_streak += 1
+            equal_needed = duo_cfg.get("duochrome_equal_confirmations", 2)
+            if ps.equal_streak >= equal_needed:
+                ps.duochrome_balanced = True
+                self._apply_endpoint_bias(eye)
+            return
+
+        # Reset equal streak on non-EQUAL response
+        ps.equal_streak = 0
+
+        if response in ("RED_CLEARER", "GREEN_CLEARER"):
+            # Flip detection
+            if ps.prev_duo_response and ps.prev_duo_response != response:
+                ps.duo_flip += 1
+
+            ps.prev_duo_response = response
+
+            # Check max flips guard
+            if ps.duo_flip >= dv.dv_duochrome_max_flips:
+                ps.duochrome_balanced = True
+                self._apply_endpoint_bias(eye)
+                return
+
+            # Apply sphere adjustment
+            if response == "RED_CLEARER":
+                delta = duo_cfg.get("duochrome_red_step", -0.25)
+            else:
+                delta = duo_cfg.get("duochrome_green_step", 0.25)
+
+            if eye == "RE":
+                ps.re_sph += delta
+            else:
+                ps.le_sph += delta
+
+    def _apply_endpoint_bias(self, eye: str):
+        """Apply endpoint bias (undercorrect/overcorrect) at duochrome convergence."""
+        dv = self.derived_vars
+        cal = self.calibration
+        ps = self.phase_state
+        bias = dv.dv_endpoint_bias_policy
+        eb_cfg = cal.get("ENDPOINT_BIAS", {})
+
+        if bias == "Undercorrect":
+            # Slight plus bias (less minus)
+            delta = eb_cfg.get("undercorrect_step", 0.25)
+        elif bias == "Overcorrect":
+            # Slight minus bias (more minus)
+            delta = -eb_cfg.get("overcorrect_step", 0.25)
+        else:
+            return  # Neutral — no bias
+
+        if eye == "RE":
+            ps.re_sph += delta
+        else:
+            ps.le_sph += delta
+
+        logger.info(f"Applied endpoint bias: {bias} ({delta:+.2f}D) to {eye}")
+
+    def _process_binoc_balance(self, response: str):
+        """
+        Binocular Balance (State K): Balance sphere between eyes.
+
+        Logic:
+        - TOP_CLEARER: RE SPH += balance_step (add plus to weaker eye)
+        - BOTTOM_CLEARER: LE SPH += balance_step
+        - SAME/CANT_TELL: increment same_streak → converged when streak ≥ threshold
+        """
+        ps = self.phase_state
+        cal = self.calibration
+        bino_cfg = cal.get("BINOC_BALANCE", {})
+        step = bino_cfg.get("bino_balance_step", 0.25)
+        same_needed = bino_cfg.get("bino_balance_same_required", 1)
+
+        if response in ("SAME", "CANT_TELL"):
+            ps.balance_same_streak += 1
+            if ps.balance_same_streak >= same_needed:
+                ps.balance_converged = True
+            return
+
+        # Reset same streak
+        ps.balance_same_streak = 0
+
+        if response == "TOP_CLEARER":
+            # Top is RE — RE is clearer, so add plus to RE to balance
+            ps.re_sph += step
+        elif response == "BOTTOM_CLEARER":
+            # Bottom is LE — LE is clearer, so add plus to LE to balance
+            ps.le_sph += step
+
+    def _process_near_add(self, response: str):
+        """
+        Near ADD (States P, Q): Determine reading addition.
+
+        Logic:
+        - BLURRY/NOT_READABLE: increment ADD by near_add_step (+0.25D)
+        - READABLE: add_converged = True
+        """
+        ps = self.phase_state
+        cal = self.calibration
+        eye = self.current_eye
+        near_cfg = cal.get("NEAR_WORKFLOW", {})
+        add_step = near_cfg.get("near_add_step", 0.25)
+
+        if response in ("BLURRY", "NOT_READABLE"):
+            if eye == "RE":
+                ps.re_add += add_step
+            else:
+                ps.le_add += add_step
+        elif response == "READABLE":
+            ps.add_converged = True
+
+    def _process_near_binoc(self, response: str):
+        """
+        Near Binocular Verify (State R): Verify binocular near vision.
+
+        Logic:
+        - TARGET_OK: test complete
+        - NOT_CLEAR: increment both ADDs by step
+        """
+        ps = self.phase_state
+        cal = self.calibration
+        near_cfg = cal.get("NEAR_WORKFLOW", {})
+        add_step = near_cfg.get("near_add_step", 0.25)
+
+        if response == "NOT_CLEAR":
+            ps.re_add += add_step
+            ps.le_add += add_step
+
+    # -------------------------------------------------------------------------
     # Guard Evaluation
     # -------------------------------------------------------------------------
 
@@ -482,10 +871,16 @@ class FSMStateMachine:
             "dv_add_expected": dv.dv_add_expected,
             "dv_target_distance_va": dv.dv_target_distance_va,
             "dv_near_test_required": dv.dv_near_test_required,
+            "dv_anomaly_watch": dv.dv_anomaly_watch,
 
-            # VA proxies
-            "VA_RE": ps.chart_idx,  # Simplified; real implementation uses VA measurement
-            "VA_LE": ps.chart_idx,
+            # Fogging state
+            "fog_cleared": ps.fog_phase == "cleared" or ps.fog_remaining <= 0,
+            "fog_remaining": ps.fog_remaining,
+
+            # VA tracking (per-eye best chart read)
+            "VA_RE": ps.va_re,
+            "VA_LE": ps.va_le,
+            "VA_BIN": ps.va_bin,
             "target_va": target_chart_idx,
         }
 
