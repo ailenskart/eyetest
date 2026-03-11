@@ -221,18 +221,57 @@ class PatientInput:
         """
         Validate required fields. Returns list of error messages.
         Empty list means valid.
+
+        Enforces that all Patient_Input_Master required fields (Sections A-G)
+        are present before the FSM can start, since Derived Variables depend
+        on patient history for risk assessment, stability, and start policy.
         """
         errors = []
 
+        # Section A: Identifiers
         if not self.patient_id:
             errors.append("patient_id is required")
         if not self.visit_id:
             errors.append("visit_id is required")
+
+        # Section B: Demographics & Usage Profile
         if self.age_years < 3:
             errors.append("age_years must be >= 3")
         if self.screen_time_hours < 0 or self.screen_time_hours > 24:
             errors.append("screen_time_hours must be 0-24")
         if self.driving_time_hours < 0 or self.driving_time_hours > 24:
             errors.append("driving_time_hours must be 0-24")
+
+        # Section D: Current Eyewear & Adaptation
+        # currently_wearing_glasses and satisfaction are required for start policy
+        valid_satisfaction = [s.value for s in Satisfaction]
+        if self.satisfaction_with_current_rx not in valid_satisfaction:
+            errors.append(
+                f"satisfaction_with_current_rx must be one of {valid_satisfaction}"
+            )
+
+        # Section F: Medical & Ocular History (required flags per spreadsheet)
+        # diabetes, prior_eye_surgery, known_keratoconus, known_amblyopia,
+        # current_eye_infection_or_inflammation are all marked Required=Yes
+        # These are booleans/enums with safe defaults, so we validate
+        # prior_eye_surgery which is an enum
+        valid_surgery = [s.value for s in PriorSurgery]
+        if self.prior_eye_surgery not in valid_surgery:
+            errors.append(
+                f"prior_eye_surgery must be one of {valid_surgery}"
+            )
+
+        # Section G: Patient Preference & Outcome Target
+        valid_priority = [p.value for p in Priority]
+        if self.priority not in valid_priority:
+            errors.append(
+                f"priority must be one of {valid_priority}"
+            )
+
+        valid_distance_target = [d.value for d in DistanceTarget]
+        if self.distance_target not in valid_distance_target:
+            errors.append(
+                f"distance_target must be one of {valid_distance_target}"
+            )
 
         return errors

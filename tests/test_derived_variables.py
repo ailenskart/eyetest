@@ -499,8 +499,11 @@ class TestFogging(unittest.TestCase):
         self.assertEqual(dv.dv_fogging_policy, "Strong_Fog")
 
     def test_standard_fog_moderate_risk(self):
+        # Use amblyopia for moderate medical risk without affecting stability
+        # (diabetes now makes stability "Uncertain" per spreadsheet, which
+        #  breaks the Standard_Fog condition requiring stability="Stable")
         p = PatientInput(patient_id="P1", visit_id="V1", age_years=30,
-                         diabetes=True)  # moderate medical risk
+                         known_amblyopia=True)  # moderate medical risk, stable
         dv = compute_derived_variables(p, ARInput(), LensoInput(), self.cal)
         self.assertEqual(dv.dv_fogging_policy, "Standard_Fog")
         self.assertAlmostEqual(dv.dv_fogging_amount_D, 0.75)
@@ -616,8 +619,10 @@ class TestEndpointBias(unittest.TestCase):
         self.assertEqual(dv.dv_endpoint_bias_policy, "Undercorrect")
 
     def test_overcorrect_driver(self):
+        # Spreadsheet: Overcorrect requires occupation=Driver AND night symptoms
         p = PatientInput(patient_id="P1", visit_id="V1", age_years=30,
-                         driving_time_hours=3)
+                         occupation_type="Driver",
+                         symptoms_multi=["Night driving difficulty"])
         dv = compute_derived_variables(p, ARInput(), LensoInput(), self.cal)
         self.assertEqual(dv.dv_endpoint_bias_policy, "Overcorrect")
 

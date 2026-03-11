@@ -231,8 +231,9 @@ def compute_derived_variables(
 
     if patient.fluctuating_vision_reported or patient.rx_change_was_large:
         dv.dv_stability_level = "Unstable"
-    elif (patient.last_eye_test_months_ago is not None
-          and patient.last_eye_test_months_ago > uncertain_months):
+    elif (patient.diabetes
+          or (patient.last_eye_test_months_ago is not None
+              and patient.last_eye_test_months_ago > uncertain_months)):
         dv.dv_stability_level = "Uncertain"
     else:
         dv.dv_stability_level = "Stable"
@@ -294,12 +295,15 @@ def compute_derived_variables(
     # -------------------------------------------------------------------------
     # 18. dv_endpoint_bias_policy
     # -------------------------------------------------------------------------
-    if (dv.dv_near_priority == "High"
+    # Spreadsheet: High symptom risk → always Neutral (safety override)
+    if dv.dv_symptom_risk_level == "High":
+        dv.dv_endpoint_bias_policy = "Neutral"
+    elif (patient.priority == "Comfort-first"
             and dv.dv_age_bucket == "Presbyope"
-            and patient.priority == "Comfort-first"):
+            and dv.dv_near_priority == "High"):
         dv.dv_endpoint_bias_policy = "Undercorrect"
-    elif (dv.dv_distance_priority == "High"
-          or "Night driving difficulty" in symptoms):
+    elif (patient.occupation_type == "Driver"
+          and (symptoms & {"Night driving difficulty", "Glare/halos (night)"})):
         dv.dv_endpoint_bias_policy = "Overcorrect"
     else:
         dv.dv_endpoint_bias_policy = "Neutral"
@@ -518,17 +522,18 @@ def compute_derived_variables(
     # Spec: Stable→2 flips; Normal→3; Unstable→4
     # Maps directly from stability_level, not branching_guardrails
     # -------------------------------------------------------------------------
-    if dv.dv_stability_level == "Stable":
+    # Spreadsheet: maps from branching_guardrails (Strict/Normal/Relaxed)
+    if dv.dv_branching_guardrails == "Strict":
         dv.dv_duochrome_max_flips = cfg_duo.get(
-            "duochrome_max_flips_stable", 2
+            "duochrome_max_flips_strict", 3
         )
-    elif dv.dv_stability_level == "Unstable":
+    elif dv.dv_branching_guardrails == "Relaxed":
         dv.dv_duochrome_max_flips = cfg_duo.get(
-            "duochrome_max_flips_unstable", 4
+            "duochrome_max_flips_relaxed", 5
         )
     else:
         dv.dv_duochrome_max_flips = cfg_duo.get(
-            "duochrome_max_flips_normal", 3
+            "duochrome_max_flips_normal", 4
         )
 
     # -------------------------------------------------------------------------
