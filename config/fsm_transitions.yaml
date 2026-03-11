@@ -178,9 +178,9 @@ states:
     entry_actions:
       - "Perform binocular sphere balance"
     transitions:
-      - guard: "balance_converged and dv_add_expected == None"
+      - guard: "balance_converged and dv_near_test_required == false"
         next_state: END
-      - guard: "balance_converged and dv_add_expected != None"
+      - guard: "balance_converged and dv_near_test_required == true"
         next_state: P
       - guard: "response in [TOP_CLEARER, BOTTOM_CLEARER]"
         next_state: K

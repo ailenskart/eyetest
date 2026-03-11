@@ -118,7 +118,7 @@ CYL_POLICY:
 # Fogging protocol parameters
 # ---------------------------------------------------------------------------
 FOGGING:
-  no_fog_amount: 0.25                              # SPH shift when no fogging (D)
+  no_fog_amount: 0.0                                # SPH shift when no fogging (D) - spec: 0
   standard_fog_amount: 0.75                        # Standard fog amount (D)
   strong_fog_amount: 1.0                           # Strong fog amount (D)
   strong_fog_if_presbyope: true                    # Presbyopes get strong fogging
@@ -129,6 +129,7 @@ FOGGING:
   stepdown_mode_strong_6_9: "Early_Stop_if_Risk"  # Strong fog + 6/9 target
   stepdown_mode_strong_6_6: "StepDown_0.25"        # Strong fog + 6/6 target
   stepdown_mode_standard: "StepDown_0.50_then_0.25"  # Standard fog clearance
+  stepdown_mode_no_fog: "StepDown_0.25"              # No-fog clearance (parameterized)
   fog_confirm_low: 1                               # Confirmations - Low confidence
   fog_confirm_medium: 2                            # Confirmations - Medium confidence
   fog_confirm_high: 3                              # Confirmations - High confidence
@@ -141,9 +142,9 @@ DUOCHROME:
   duochrome_red_step: -0.25                # SPH adjustment when red clearer (D)
   duochrome_green_step: 0.25               # SPH adjustment when green clearer (D)
   duochrome_equal_confirmations: 2         # Consecutive EQUAL for convergence
-  duochrome_max_flips_strict: 3            # Max flips - Strict guardrails
-  duochrome_max_flips_normal: 4            # Max flips - Normal guardrails
-  duochrome_max_flips_relaxed: 5           # Max flips - Relaxed guardrails
+  duochrome_max_flips_stable: 2             # Max flips - Stable patients (spec: 2)
+  duochrome_max_flips_normal: 3            # Max flips - Normal stability (spec: 3)
+  duochrome_max_flips_unstable: 4          # Max flips - Unstable patients (spec: 4)
 
 # ---------------------------------------------------------------------------
 # BINOCULAR BALANCE
