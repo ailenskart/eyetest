@@ -193,6 +193,7 @@ class FSMStateMachine:
     phase_ui_map: dict = field(default_factory=dict)
     response_types: dict = field(default_factory=dict)
     calibration: dict = field(default_factory=dict)
+    protocol: dict = field(default_factory=dict)
 
     # Derived variables (computed before test starts)
     derived_vars: DerivedVariables = field(default_factory=DerivedVariables)
@@ -233,6 +234,9 @@ class FSMStateMachine:
 
         with open(config_dir / "calibration.yaml") as f:
             self.calibration = yaml.safe_load(f)
+
+        with open(config_dir / "protocol.yaml") as f:
+            self.protocol = yaml.safe_load(f)
 
     def _init_lens_values(self):
         """Initialize lens values from derived variables start Rx."""
