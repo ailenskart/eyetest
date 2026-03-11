@@ -35,7 +35,7 @@ states:
     transitions:
       - guard: "VA_RE >= target_va and response == READABLE"
         next_state: E
-      - guard: "comparisons > limit"
+      - guard: "comparisons >= limit"
         next_state: ESCALATE
       - guard: "response in [BLURRY, NOT_READABLE]"
         next_state: B   # adjust SPH
@@ -53,7 +53,7 @@ states:
     transitions:
       - guard: "axis_converged"
         next_state: F
-      - guard: "comparisons > limit"
+      - guard: "comparisons >= limit"
         next_state: ESCALATE
       - guard: "response in [BETTER_1, BETTER_2]"
         next_state: E   # adjust axis
@@ -71,7 +71,7 @@ states:
     transitions:
       - guard: "cyl_converged"
         next_state: G
-      - guard: "comparisons > limit"
+      - guard: "comparisons >= limit"
         next_state: ESCALATE
       - guard: "response in [BETTER_1, BETTER_2]"
         next_state: F   # adjust CYL
@@ -89,7 +89,7 @@ states:
     transitions:
       - guard: "duochrome_balanced"
         next_state: D
-      - guard: "comparisons > limit"
+      - guard: "comparisons >= limit"
         next_state: D   # accept best and move on
       - guard: "response in [RED_CLEARER, GREEN_CLEARER]"
         next_state: G   # adjust SPH
@@ -108,7 +108,7 @@ states:
     transitions:
       - guard: "VA_LE >= target_va and response == READABLE"
         next_state: H
-      - guard: "comparisons > limit"
+      - guard: "comparisons >= limit"
         next_state: ESCALATE
       - guard: "response in [BLURRY, NOT_READABLE]"
         next_state: D   # adjust SPH
@@ -126,7 +126,7 @@ states:
     transitions:
       - guard: "axis_converged"
         next_state: I
-      - guard: "comparisons > limit"
+      - guard: "comparisons >= limit"
         next_state: ESCALATE
       - guard: "response in [BETTER_1, BETTER_2]"
         next_state: H
@@ -144,7 +144,7 @@ states:
     transitions:
       - guard: "cyl_converged"
         next_state: J
-      - guard: "comparisons > limit"
+      - guard: "comparisons >= limit"
         next_state: ESCALATE
       - guard: "response in [BETTER_1, BETTER_2]"
         next_state: I
@@ -162,7 +162,7 @@ states:
     transitions:
       - guard: "duochrome_balanced"
         next_state: K
-      - guard: "comparisons > limit"
+      - guard: "comparisons >= limit"
         next_state: K
       - guard: "response in [RED_CLEARER, GREEN_CLEARER]"
         next_state: J

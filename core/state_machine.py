@@ -357,30 +357,15 @@ class FSMStateMachine:
         if self._drift_escalation_triggered:
             return self._enter_state("ESCALATE")
 
+        # Check optom review flag (spreadsheet: checked every row, all states)
+        if getattr(self.derived_vars, "dv_requires_optom_review", False):
+            return self._enter_state("ESCALATE")
+
         # Log the step
         self._log_step(response)
 
-        # Check timeout
-        timeout_limit = self.get_timeout_limit()
-        if self.phase_state.step_count >= timeout_limit:
-            timeout_action = self.current_state_config.get(
-                "timeout_action", "ESCALATE"
-            )
-            if timeout_action == "ACCEPT_BEST":
-                logger.warning(
-                    f"Phase timeout in state {self.current_state} "
-                    f"after {self.phase_state.step_count} steps. "
-                    f"Accepting best values."
-                )
-                # Accept current values and move to next logical state
-                return self._accept_best_transition()
-            else:
-                logger.warning(
-                    f"Phase timeout in state {self.current_state}. Escalating."
-                )
-                return self._enter_state("ESCALATE")
-
-        # Evaluate guard conditions
+        # Evaluate guard conditions first (spreadsheet: guards include
+        # "comparisons > limit" which IS the timeout mechanism)
         transitions = self.current_state_config.get("transitions", [])
         context = self._build_guard_context(response)
 
@@ -393,6 +378,25 @@ class FSMStateMachine:
                 else:
                     # Stay in same state (loop)
                     return self.current_state
+
+        # Fallback timeout check (safety net if no guard explicitly handles it)
+        timeout_limit = self.get_timeout_limit()
+        if self.phase_state.step_count >= timeout_limit:
+            timeout_action = self.current_state_config.get(
+                "timeout_action", "ESCALATE"
+            )
+            if timeout_action == "ACCEPT_BEST":
+                logger.warning(
+                    f"Phase timeout in state {self.current_state} "
+                    f"after {self.phase_state.step_count} steps. "
+                    f"Accepting best values."
+                )
+                return self._accept_best_transition()
+            else:
+                logger.warning(
+                    f"Phase timeout in state {self.current_state}. Escalating."
+                )
+                return self._enter_state("ESCALATE")
 
         # No guard matched — stay in current state
         logger.debug(

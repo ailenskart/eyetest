@@ -374,8 +374,8 @@ class TestTimeouts(unittest.TestCase):
         expected = cal.get("PHASE_TIMEOUTS", {}).get("timeout_coarse_fast", 24)
         self.assertEqual(limit, expected)
 
-    def test_timeout_triggers_accept_best(self):
-        """When step_count >= timeout, ACCEPT_BEST should advance state."""
+    def test_timeout_triggers_escalate_for_coarse(self):
+        """When step_count >= timeout in coarse sphere (B/D), should ESCALATE."""
         fsm = FSMStateMachine(derived_vars=self.dv)
 
         # Move to state B (COARSE_SPHERE)
@@ -383,13 +383,14 @@ class TestTimeouts(unittest.TestCase):
         fsm.transition("READABLE")  # A → B
         self.assertEqual(fsm.current_state, "B")
 
-        # Simulate hitting timeout
+        # Simulate hitting timeout (both counters increment together)
         timeout = fsm.get_timeout_limit()
-        fsm.phase_state.step_count = timeout - 1  # Next transition will trigger
+        fsm.phase_state.step_count = timeout - 1
+        fsm.phase_state.comparisons = timeout - 1  # Next transition will trigger
 
-        # This should trigger ACCEPT_BEST and advance to E
+        # Coarse sphere states (B/D) escalate on timeout per spreadsheet
         state = fsm.transition("NOT_READABLE")
-        self.assertIn(state, ["E", "ESCALATE"])  # Depending on timeout_action
+        self.assertEqual(state, "ESCALATE")
 
 
 class TestEntryActions(unittest.TestCase):
