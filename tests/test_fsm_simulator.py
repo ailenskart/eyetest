@@ -208,20 +208,21 @@ class TestDistanceBaseline(unittest.TestCase):
         """Reaching target chart with READABLE transitions to B."""
         fsm = FSMStateMachine(derived_vars=self.dv)
 
-        # Walk through all charts (6 charts, 0→5)
-        for i in range(5):
-            fsm.transition("READABLE")
-            fsm.phase_state.chart_idx = i + 1
+        # Walk through charts until we reach state B
+        # Each READABLE advances chart_idx; once chart_idx >= target, goes to B
+        new_state = "A"
+        for i in range(6):
+            new_state = fsm.transition("READABLE")
+            if new_state != "A":
+                break
 
-        # At chart_idx=5 (target), READABLE should transition to B
-        new_state = fsm.transition("READABLE")
         self.assertEqual(new_state, "B")
 
-    def test_not_readable_stays(self):
-        """NOT_READABLE stays in state A."""
+    def test_not_readable_goes_to_b(self):
+        """NOT_READABLE in state A transitions to B per spreadsheet."""
         fsm = FSMStateMachine(derived_vars=self.dv)
         new_state = fsm.transition("NOT_READABLE")
-        self.assertEqual(new_state, "A")
+        self.assertEqual(new_state, "B")
 
     def test_optom_review_escalates(self):
         """If dv_requires_optom_review=True, transitions to ESCALATE."""

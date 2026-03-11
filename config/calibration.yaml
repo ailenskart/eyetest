@@ -129,7 +129,7 @@ FOGGING:
   stepdown_mode_strong_6_9: "Early_Stop_if_Risk"  # Strong fog + 6/9 target
   stepdown_mode_strong_6_6: "StepDown_0.25"        # Strong fog + 6/6 target
   stepdown_mode_standard: "StepDown_0.50_then_0.25"  # Standard fog clearance
-  stepdown_mode_no_fog: "StepDown_0.25"              # No-fog clearance (parameterized)
+  stepdown_mode_no_fog: "StepDown_0.50_then_0.25"    # No-fog clearance (same as standard per spec)
   fog_confirm_low: 1                               # Confirmations - Low confidence
   fog_confirm_medium: 2                            # Confirmations - Medium confidence
   fog_confirm_high: 3                              # Confirmations - High confidence

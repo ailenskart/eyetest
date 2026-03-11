@@ -21,7 +21,7 @@ states:
       - guard: "response == READABLE"
         next_state: A   # advance chart
       - guard: "response in [NOT_READABLE, BLURRY]"
-        next_state: A   # stay on chart
+        next_state: B   # exit baseline and start refraction per spreadsheet
     timeout_bucket: Fast
     timeout_action: ESCALATE
 
@@ -33,14 +33,14 @@ states:
       - "Occlude LE and load dv_start_rx_RE values"
       - "Apply fogging if dv_fogging_policy != No_Fog"
     transitions:
-      - guard: "VA_RE >= target_va"
+      - guard: "VA_RE >= target_va and response == READABLE"
         next_state: E
       - guard: "comparisons > limit"
         next_state: ESCALATE
       - guard: "response in [BLURRY, NOT_READABLE]"
         next_state: B   # adjust SPH
       - guard: "response == READABLE"
-        next_state: B   # clear fog or check convergence
+        next_state: B   # track VA, check convergence
     timeout_bucket: Normal
     timeout_action: ACCEPT_BEST
 
@@ -106,14 +106,14 @@ states:
       - "Occlude RE and load dv_start_rx_LE values"
       - "Apply fogging if dv_fogging_policy != No_Fog"
     transitions:
-      - guard: "VA_LE >= target_va"
+      - guard: "VA_LE >= target_va and response == READABLE"
         next_state: H
       - guard: "comparisons > limit"
         next_state: ESCALATE
       - guard: "response in [BLURRY, NOT_READABLE]"
         next_state: D   # adjust SPH
       - guard: "response == READABLE"
-        next_state: D   # clear fog or check convergence
+        next_state: D   # track VA, check convergence
     timeout_bucket: Normal
     timeout_action: ACCEPT_BEST
 
@@ -198,7 +198,7 @@ states:
     transitions:
       - guard: "add_converged"
         next_state: Q
-      - guard: "response == READABLE"
+      - guard: "response in [READABLE, SAME]"
         next_state: Q
       - guard: "response in [BLURRY, NOT_READABLE]"
         next_state: P   # increment ADD
@@ -214,7 +214,7 @@ states:
     transitions:
       - guard: "add_converged"
         next_state: R
-      - guard: "response == READABLE"
+      - guard: "response in [READABLE, SAME]"
         next_state: R
       - guard: "response in [BLURRY, NOT_READABLE]"
         next_state: Q
@@ -228,9 +228,9 @@ states:
     entry_actions:
       - "Binocular near verification"
     transitions:
-      - guard: "response == TARGET_OK"
+      - guard: "response in [TARGET_OK, SAME]"
         next_state: END
-      - guard: "response in [NOT_CLEAR, SAME, CANT_TELL]"
+      - guard: "response in [NOT_CLEAR, CANT_TELL]"
         next_state: R
     timeout_bucket: Normal
     timeout_action: ACCEPT_BEST

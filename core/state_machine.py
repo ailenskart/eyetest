@@ -350,7 +350,12 @@ class FSMStateMachine:
         self.phase_state.comparisons += 1
 
         # Process the response: apply clinical adjustments to lens values
+        self._drift_escalation_triggered = False
         self._process_response(response)
+
+        # Check drift escalation (spreadsheet: immediately escalate on drift)
+        if self._drift_escalation_triggered:
+            return self._enter_state("ESCALATE")
 
         # Log the step
         self._log_step(response)
@@ -519,37 +524,26 @@ class FSMStateMachine:
                 ps.va_le = max(ps.va_le, ps.chart_idx)
 
             ps.coarse_readable_streak += 1
+            # Spreadsheet: READABLE → dS = 0 (no sphere change).
+            # Fog is cleared by the minus steps on BLURRY/NOT_READABLE,
+            # not by an active clearing protocol on READABLE.
 
-            if ps.fog_remaining > 0:
-                # Clear fog step by step
-                clearance = dv.dv_fogging_clearance_mode
-                clear_step = self._get_fog_clear_step(clearance, ps.fog_remaining)
+        # Drift detection: escalate if delta from start or AR exceeds max
+        if dv.dv_anomaly_watch:
+            if eye == "RE":
+                delta_start = abs(ps.re_sph - dv.dv_start_rx_RE_sph)
+                delta_ar = abs(ps.re_sph - dv.dv_max_delta_from_ar_sph) if hasattr(dv, 'dv_max_delta_from_ar_sph') else 0
+            else:
+                delta_start = abs(ps.le_sph - dv.dv_start_rx_LE_sph)
+                delta_ar = abs(ps.le_sph - dv.dv_max_delta_from_ar_sph) if hasattr(dv, 'dv_max_delta_from_ar_sph') else 0
 
-                if eye == "RE":
-                    ps.re_sph -= clear_step
-                else:
-                    ps.le_sph -= clear_step
-
-                ps.fog_remaining = max(0.0, ps.fog_remaining - clear_step)
-                ps.fog_remaining = round(ps.fog_remaining, 2)
-
-                if ps.fog_remaining <= 0:
-                    ps.fog_phase = "cleared"
-                else:
-                    ps.fog_phase = "clearing"
-            # If fog cleared and READABLE, VA is at/near target
-
-        # Drift detection
-        if eye == "RE":
-            delta = abs(ps.re_sph - dv.dv_start_rx_RE_sph)
-        else:
-            delta = abs(ps.le_sph - dv.dv_start_rx_LE_sph)
-
-        if delta > dv.dv_max_delta_from_start_sph and dv.dv_anomaly_watch:
-            logger.warning(
-                f"Drift anomaly: {eye} SPH delta {delta:.2f}D "
-                f"exceeds max {dv.dv_max_delta_from_start_sph}D"
-            )
+            if (delta_start > dv.dv_max_delta_from_start_sph
+                    or delta_ar > dv.dv_max_delta_from_ar_sph):
+                logger.warning(
+                    f"Drift anomaly: {eye} SPH delta_start={delta_start:.2f}D "
+                    f"delta_ar={delta_ar:.2f}D — triggering escalation"
+                )
+                self._drift_escalation_triggered = True
 
     def _get_fog_clear_step(self, clearance_mode: str, fog_remaining: float) -> float:
         """Determine fog clearance step size based on mode."""
@@ -594,14 +588,14 @@ class FSMStateMachine:
                 elif ps.axis_reversal_count >= 2:
                     ps.axis_step = axis_cfg.get("axis_reversal_step_2", 1)
 
-                # Check convergence: if step ≤ tolerance, converged
-                if ps.axis_step <= dv.dv_axis_tolerance_deg:
+                # Check convergence: if step < tolerance, converged (strict < per spreadsheet)
+                if ps.axis_step < dv.dv_axis_tolerance_deg:
                     ps.axis_converged = True
 
             ps.prev_axis_response = response
 
-            # Apply axis adjustment
-            direction = 1 if response == "BETTER_1" else -1
+            # Apply axis adjustment (spreadsheet: BETTER_1 → negative, BETTER_2 → positive)
+            direction = -1 if response == "BETTER_1" else 1
             step = ps.axis_step * direction
 
             if eye == "RE":
@@ -632,10 +626,15 @@ class FSMStateMachine:
         policy = dv.dv_step_size_policy.lower()
         cyl_step = step_cfg.get(f"{policy}_cyl_step", 0.25)
 
-        if response in ("SAME", "CANT_TELL"):
+        if response == "SAME":
             ps.same_streak += 1
             if ps.same_streak >= dv.dv_jcc_power_same_required:
                 ps.cyl_converged = True
+            return
+
+        if response == "CANT_TELL":
+            # Spreadsheet: CANT_TELL resets same streak (not counted as SAME)
+            ps.same_streak = 0
             return
 
         # Reset same_streak on non-SAME response
@@ -651,20 +650,8 @@ class FSMStateMachine:
             else:
                 ps.le_cyl += delta_cyl
 
-            # Track cumulative CYL change for SE compensation
-            ps.cyl_cumulative_change += delta_cyl
-
-            # Spherical equivalent (SE) compensation:
-            # For every 0.50D CYL change, compensate SPH by ±0.25D
-            # (half the CYL change in opposite direction)
-            if abs(ps.cyl_cumulative_change) >= 0.50:
-                se_adjust = -0.25 if ps.cyl_cumulative_change > 0 else 0.25
-                if eye == "RE":
-                    ps.re_sph += se_adjust
-                else:
-                    ps.le_sph += se_adjust
-                # Reset cumulative tracker (keep remainder)
-                ps.cyl_cumulative_change -= 0.50 if ps.cyl_cumulative_change > 0 else -0.50
+            # Note: Spreadsheet has no SPH delta during JCC Power (states F/I).
+            # SE compensation is NOT applied per the FSMv2 spec.
 
     def _process_duochrome(self, response: str):
         """
@@ -686,12 +673,18 @@ class FSMStateMachine:
 
         ps.duo_iter += 1
 
-        if response in ("EQUAL", "CANT_TELL"):
+        if response == "EQUAL":
             ps.equal_streak += 1
+            # Spreadsheet: apply endpoint bias on every EQUAL response
+            self._apply_endpoint_bias(eye)
             equal_needed = duo_cfg.get("duochrome_equal_confirmations", 2)
             if ps.equal_streak >= equal_needed:
                 ps.duochrome_balanced = True
-                self._apply_endpoint_bias(eye)
+            return
+
+        if response == "CANT_TELL":
+            # Spreadsheet: CANT_TELL does NOT count toward equal streak
+            # and does NOT apply endpoint bias
             return
 
         # Reset equal streak on non-EQUAL response
@@ -760,10 +753,15 @@ class FSMStateMachine:
         step = bino_cfg.get("bino_balance_step", 0.25)
         same_needed = bino_cfg.get("bino_balance_same_required", 1)
 
-        if response in ("SAME", "CANT_TELL"):
+        if response == "SAME":
             ps.balance_same_streak += 1
             if ps.balance_same_streak >= same_needed:
                 ps.balance_converged = True
+            return
+
+        if response == "CANT_TELL":
+            # Spreadsheet: CANT_TELL does not count toward same streak
+            ps.balance_same_streak = 0
             return
 
         # Reset same streak
@@ -1062,6 +1060,12 @@ class FSMStateMachine:
 
         elif phase_type == "NEAR_ADD":
             ps.add_converged = False
+            # Initialize ADD from existing prescription (Lenso input) per spreadsheet
+            eye = self.transitions_config.get(state, {}).get("eye", "RE")
+            if eye == "RE" and dv.dv_start_rx_RE_add > 0:
+                ps.re_add = dv.dv_start_rx_RE_add
+            elif eye == "LE" and dv.dv_start_rx_LE_add > 0:
+                ps.le_add = dv.dv_start_rx_LE_add
 
     # -------------------------------------------------------------------------
     # Logging

@@ -50,6 +50,8 @@ class DerivedVariables:
     dv_start_rx_LE_sph: float = 0.0
     dv_start_rx_LE_cyl: float = 0.0
     dv_start_rx_LE_axis: float = 0.0
+    dv_start_rx_RE_add: float = 0.0
+    dv_start_rx_LE_add: float = 0.0
 
     # Near / ADD
     dv_add_expected: str = "None"                     # None / Possible / Likely
@@ -693,6 +695,10 @@ def _compute_start_rx(
         dv.dv_start_rx_LE_sph = ar.le.sph
         dv.dv_start_rx_LE_cyl = ar.le.cyl
         dv.dv_start_rx_LE_axis = ar.le.axis
+
+    # ADD always comes from Lenso (existing prescription) per spreadsheet
+    dv.dv_start_rx_RE_add = lenso.re.add if lenso.re.add else 0.0
+    dv.dv_start_rx_LE_add = lenso.le.add if lenso.le.add else 0.0
 
 
 def _compute_guardrails(dv: DerivedVariables) -> str:
