@@ -28,6 +28,7 @@ from interactive_session import InteractiveSession
 from core.patient_input import PatientInput
 from core.ar_lenso_input import ARInput, LensoInput, EyeRx
 from core.derived_variables import compute_derived_variables, load_calibration
+from core.fsm_session import FSMSession
 import copy
 import shutil
 import yaml
@@ -616,6 +617,139 @@ def preview_intake():
 
 
 # =============================================================================
+# FSMv2 Session Endpoints (uses FSM + phoropter sync)
+# =============================================================================
+
+# Separate storage for FSM-based sessions
+fsm_sessions: dict = {}
+
+
+@app.route('/api/fsm/start', methods=['POST'])
+def fsm_start():
+    """
+    Start an FSMv2 session: submit intake data, compute DVs, initialize FSM,
+    set initial power on phoropter, and return the first question.
+
+    Body: {
+        patient: {...},
+        ar: {re:{sph,cyl,axis}, le:{sph,cyl,axis}},
+        lenso: {re:{sph,cyl,axis}, le:{sph,cyl,axis}},
+        session_id: (optional),
+        phoropter_id: (optional, default 'phoropter-1')
+    }
+    """
+    payload = _request_payload()
+    _log_api_command("/api/fsm/start", {"keys": list(payload.keys())})
+
+    # Parse patient
+    patient_data = payload.get("patient", {})
+    patient = PatientInput.from_dict(patient_data)
+    errors = patient.validate()
+    if errors:
+        return jsonify({"error": "Validation failed", "details": errors}), 400
+
+    # Parse AR / Lenso
+    ar_data = payload.get("ar", {})
+    lenso_data = payload.get("lenso", {})
+    ar = ARInput.from_dict(ar_data) if ar_data else ARInput()
+    lenso = LensoInput.from_dict(lenso_data) if lenso_data else LensoInput()
+
+    # Session identifiers
+    session_id = payload.get(
+        "session_id",
+        patient.visit_id or f"fsm_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+    )
+    phoropter_id = payload.get("phoropter_id", "phoropter-1")
+
+    # Create FSM session with phoropter connection
+    fsm_sess = FSMSession(base_url=PHOROPTER_BASE_URL, phoropter_id=phoropter_id)
+
+    try:
+        calibration = load_calibration(str(CALIBRATION_PATH))
+        result = fsm_sess.initialize(patient, ar, lenso, calibration)
+    except Exception as e:
+        return jsonify({"error": f"FSM initialization failed: {e}"}), 500
+
+    fsm_sessions[session_id] = fsm_sess
+
+    return jsonify({
+        "session_id": session_id,
+        "phoropter_id": phoropter_id,
+        "status": "started",
+        "derived_variables": fsm_sess.dv.to_dict(),
+        **result,
+    })
+
+
+@app.route('/api/fsm/<session_id>/respond', methods=['POST'])
+def fsm_respond(session_id):
+    """
+    Process a patient response in an FSMv2 session.
+    Runs the FSM transition, syncs lens values to phoropter, returns next state.
+
+    Body: { "response": "READABLE" }
+    """
+    if session_id not in fsm_sessions:
+        return jsonify({"error": "FSM session not found"}), 404
+
+    payload = _request_payload()
+    _log_api_command(f"/api/fsm/{session_id}/respond", payload)
+    response = payload.get("response") or payload.get("intent")
+    if not response:
+        return jsonify({"error": "response required"}), 400
+
+    fsm_sess = fsm_sessions[session_id]
+    result = fsm_sess.respond(response)
+
+    return jsonify({
+        "session_id": session_id,
+        "status": "complete" if fsm_sess.is_complete else "active",
+        **result,
+    })
+
+
+@app.route('/api/fsm/<session_id>/status', methods=['GET'])
+def fsm_status(session_id):
+    """Get full FSMv2 session state."""
+    if session_id not in fsm_sessions:
+        return jsonify({"error": "FSM session not found"}), 404
+
+    fsm_sess = fsm_sessions[session_id]
+    return jsonify({
+        "session_id": session_id,
+        "status": "complete" if fsm_sess.is_complete else "active",
+        **fsm_sess.get_state_summary(),
+    })
+
+
+@app.route('/api/fsm/<session_id>/end', methods=['POST'])
+def fsm_end(session_id):
+    """End an FSMv2 session and return final prescription."""
+    if session_id not in fsm_sessions:
+        return jsonify({"error": "FSM session not found"}), 404
+
+    fsm_sess = fsm_sessions[session_id]
+    fsm_sess.session_end_time = datetime.now()
+
+    final_rx = {}
+    if fsm_sess.fsm:
+        final_rx = fsm_sess.fsm.get_final_rx()
+
+    result = {
+        "session_id": session_id,
+        "status": "ended",
+        "final_prescription": {
+            "right_eye": final_rx.get("RE", {}),
+            "left_eye": final_rx.get("LE", {}),
+        },
+        "step_log": fsm_sess.fsm.step_log if fsm_sess.fsm else [],
+    }
+
+    del fsm_sessions[session_id]
+    return jsonify(result)
+
+
+# =============================================================================
 # Calibration Admin Endpoints
 # =============================================================================
 
@@ -855,6 +989,11 @@ if __name__ == '__main__':
     print("  --- Intake (FSMv2) ---")
     print("  POST /api/intake")
     print("  POST /api/intake/preview")
+    print("  --- FSMv2 Session ---")
+    print("  POST /api/fsm/start")
+    print("  POST /api/fsm/<id>/respond")
+    print("  GET  /api/fsm/<id>/status")
+    print("  POST /api/fsm/<id>/end")
     print("  --- Calibration Admin ---")
     print("  GET  /api/calibration")
     print("  PUT  /api/calibration/<section>/<key>")

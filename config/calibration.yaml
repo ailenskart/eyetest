@@ -118,7 +118,7 @@ CYL_POLICY:
 # Fogging protocol parameters
 # ---------------------------------------------------------------------------
 FOGGING:
-  no_fog_amount: 0.0                                # SPH shift when no fogging (D) - spec: 0
+  no_fog_amount: 0.25                              # SPH shift when no fogging (D) - accommodation control
   standard_fog_amount: 0.75                        # Standard fog amount (D)
   strong_fog_amount: 1.0                           # Strong fog amount (D)
   strong_fog_if_presbyope: true                    # Presbyopes get strong fogging

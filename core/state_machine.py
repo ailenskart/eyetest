@@ -134,6 +134,14 @@ class PhaseState:
     # Chart state
     chart_idx: int = 0               # Current chart in the ladder
 
+    # VA tracking: maps eye → best chart index successfully read
+    va_re: int = 0                   # Best chart idx read by RE (0 = worst)
+    va_le: int = 0                   # Best chart idx read by LE (0 = worst)
+    va_bin: int = 0                  # Best chart idx read binocularly
+
+    # Coarse sphere VA tracking: consecutive readable at current chart
+    coarse_readable_streak: int = 0
+
     # Comparison counter (total interactions within this state)
     comparisons: int = 0
 
@@ -158,6 +166,7 @@ class PhaseState:
         self.balance_same_streak = 0
         self.balance_converged = False
         self.add_converged = False
+        self.coarse_readable_streak = 0
 
 
 # =============================================================================
@@ -465,9 +474,12 @@ class FSMStateMachine:
         """
         Distance Baseline (State A): Chart ladder progression.
         Advance chart on READABLE, stay on NOT_READABLE/BLURRY.
+        Updates binocular VA tracking.
         """
         ps = self.phase_state
         if response == "READABLE":
+            # Record that binocular vision can read this chart level
+            ps.va_bin = max(ps.va_bin, ps.chart_idx)
             ps.chart_idx += 1
 
     def _process_coarse_sphere(self, response: str):
@@ -493,12 +505,21 @@ class FSMStateMachine:
 
         if response in ("BLURRY", "NOT_READABLE"):
             # Add minus power (more myopic correction)
+            ps.coarse_readable_streak = 0
             if eye == "RE":
                 ps.re_sph -= sph_step
             else:
                 ps.le_sph -= sph_step
 
         elif response == "READABLE":
+            # Track VA: patient can read the current chart
+            if eye == "RE":
+                ps.va_re = max(ps.va_re, ps.chart_idx)
+            else:
+                ps.va_le = max(ps.va_le, ps.chart_idx)
+
+            ps.coarse_readable_streak += 1
+
             if ps.fog_remaining > 0:
                 # Clear fog step by step
                 clearance = dv.dv_fogging_clearance_mode
@@ -516,7 +537,7 @@ class FSMStateMachine:
                     ps.fog_phase = "cleared"
                 else:
                     ps.fog_phase = "clearing"
-            # If fog cleared and READABLE, VA is likely at/near target
+            # If fog cleared and READABLE, VA is at/near target
 
         # Drift detection
         if eye == "RE":
@@ -749,11 +770,11 @@ class FSMStateMachine:
         ps.balance_same_streak = 0
 
         if response == "TOP_CLEARER":
-            # Top is RE — RE is clearer, so add plus to LE to balance
-            ps.le_sph += step
-        elif response == "BOTTOM_CLEARER":
-            # Bottom is LE — LE is clearer, so add plus to RE to balance
+            # Top is RE — RE is clearer, so add plus to RE to balance
             ps.re_sph += step
+        elif response == "BOTTOM_CLEARER":
+            # Bottom is LE — LE is clearer, so add plus to LE to balance
+            ps.le_sph += step
 
     def _process_near_add(self, response: str):
         """
@@ -856,9 +877,10 @@ class FSMStateMachine:
             "fog_cleared": ps.fog_phase == "cleared" or ps.fog_remaining <= 0,
             "fog_remaining": ps.fog_remaining,
 
-            # VA proxies
-            "VA_RE": ps.chart_idx,  # Simplified; real implementation uses VA measurement
-            "VA_LE": ps.chart_idx,
+            # VA tracking (per-eye best chart read)
+            "VA_RE": ps.va_re,
+            "VA_LE": ps.va_le,
+            "VA_BIN": ps.va_bin,
             "target_va": target_chart_idx,
         }
 

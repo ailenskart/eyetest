@@ -456,7 +456,7 @@ def compute_derived_variables(
     elif dv.dv_fogging_policy == "Standard_Fog":
         dv.dv_fogging_amount_D = cfg_fog.get("standard_fog_amount", 0.75)
     else:
-        dv.dv_fogging_amount_D = cfg_fog.get("no_fog_amount", 0.0)
+        dv.dv_fogging_amount_D = cfg_fog.get("no_fog_amount", 0.25)
 
     # -------------------------------------------------------------------------
     # 31. dv_fogging_clearance_mode
