@@ -42,7 +42,7 @@ states:
       - guard: "response == READABLE"
         next_state: B   # track VA, check convergence
     timeout_bucket: Normal
-    timeout_action: ACCEPT_BEST
+    timeout_action: ESCALATE
 
   E:
     description: "JCC Axis Right"
@@ -115,7 +115,7 @@ states:
       - guard: "response == READABLE"
         next_state: D   # track VA, check convergence
     timeout_bucket: Normal
-    timeout_action: ACCEPT_BEST
+    timeout_action: ESCALATE
 
   H:
     description: "JCC Axis Left"

@@ -1019,6 +1019,8 @@ class FSMStateMachine:
         cal = self.calibration
 
         if phase_type == "COARSE_SPHERE":
+            # Reset chart index for new eye (spreadsheet resets chart on D entry)
+            ps.chart_idx = 0
             # Apply fogging
             if dv.dv_fogging_policy != "No_Fog":
                 eye = self.transitions_config.get(state, {}).get("eye", "RE")
