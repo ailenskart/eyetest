@@ -7,6 +7,7 @@ import yaml
 from pathlib import Path
 
 from .context import RowContext
+from .derived_variables import DerivedVariables
 
 
 @dataclass
@@ -28,17 +29,43 @@ class StateMachine:
     last_question: str = ""
     last_occluder: str = ""
     
-    # Configuration
+    # Configuration and Intelligence
     protocol: dict = field(default_factory=dict)
     thresholds: dict = field(default_factory=dict)
+    dv: Optional[DerivedVariables] = None
     
     # History
     phase_history: List[str] = field(default_factory=list)
+    
+    # Phase Sequence for forced transitions (ACCEPT_BEST policy)
+    PHASE_SEQUENCE: List[str] = field(default_factory=lambda: [
+        "distance_vision",
+        "right_eye_refraction",
+        "jcc_axis_right",
+        "jcc_power_right",
+        "duochrome_right",
+        "validation_right",
+        "left_eye_refraction",
+        "jcc_axis_left",
+        "jcc_power_left",
+        "duochrome_left",
+        "validation_left",
+        "validation_distance",
+        "binocular_balance",
+        "near_add_right",
+        "near_add_left",
+        "near_add_bino",
+        "complete"
+    ])
     
     def __post_init__(self):
         """Load configuration if not provided."""
         if not self.protocol:
             self.load_config()
+        
+        # Check for immediate escalation if DV is provided
+        if self.dv and self.dv.dv_requires_optom_review:
+            self.current_phase = "ESCALATE"
     
     def load_config(self):
         """Load protocol and thresholds from YAML files."""
@@ -55,6 +82,10 @@ class StateMachine:
         Process a row and determine its phase.
         Returns the phase ID.
         """
+        # If already escalated, stay there unless manually jumped
+        if self.current_phase == "ESCALATE":
+            return "ESCALATE"
+
         # Update duochrome tracking
         if row.chart_type == "duochrome" and not self.duochrome_seen:
             self.duochrome_seen = True
@@ -164,12 +195,15 @@ class StateMachine:
         # Update axis/power stability for JCC
         if phase in ["jcc_axis_right", "jcc_axis_left"]:
             if row.is_flip2 and nxt:
+                # Use dv axis tolerance if available, otherwise default to no change
+                axis_tol = self.dv.dv_axis_tolerance_deg if self.dv else 0.5
+                
                 if "Both Same" in (row.patient_answer_intent or ""):
                     if "right" in phase:
                         self.right_axis_stable = True
                     else:
                         self.left_axis_stable = True
-                elif not row.has_axis_change(nxt):
+                elif not row.has_axis_change(nxt, tolerance=axis_tol):
                     if "right" in phase:
                         self.right_axis_stable = True
                     else:
@@ -177,12 +211,15 @@ class StateMachine:
         
         if phase in ["jcc_power_right", "jcc_power_left"]:
             if row.is_flip2 and nxt:
+                # Use adaptive cylinder tolerance from DerivedVariables
+                cyl_tol = self.dv.dv_cyl_tolerance_D if self.dv else 0.25
+
                 if "Both Same" in (row.patient_answer_intent or ""):
                     if "right" in phase:
                         self.right_cyl_stable = True
                     else:
                         self.left_cyl_stable = True
-                elif not row.has_cyl_change(nxt):
+                elif not row.has_cyl_change(nxt, tolerance=cyl_tol):
                     if "right" in phase:
                         self.right_cyl_stable = True
                     else:
@@ -223,6 +260,13 @@ class StateMachine:
         if current_phase == "jcc_power_left" and self.left_cyl_stable:
             return "duochrome_left"
         
+        # Check if we should go to Near Vision or End Test
+        if current_phase == "binocular_balance" and self.dv:
+            if self.dv.dv_add_expected != "None":
+                return "near_add_right"
+            else:
+                return "test_complete"
+        
         return None
     
     def get_phase_name(self, phase_id: str) -> str:
@@ -230,3 +274,16 @@ class StateMachine:
         phases = self.protocol.get("phases", {})
         phase_config = phases.get(phase_id, {})
         return phase_config.get("name", phase_id)
+
+    def force_transition_next(self):
+        """Forcefully moves to the next phase in the sequence (used for timeouts)."""
+        try:
+            current_idx = self.PHASE_SEQUENCE.index(self.current_phase)
+            if current_idx < len(self.PHASE_SEQUENCE) - 1:
+                self.current_phase = self.PHASE_SEQUENCE[current_idx + 1]
+                print(f"⏩ FORCED transition to: {self.current_phase}")
+            else:
+                self.current_phase = "complete"
+        except ValueError:
+            # If current phase not in sequence, default to distance_vision or refraction
+            self.current_phase = "right_eye_refraction"

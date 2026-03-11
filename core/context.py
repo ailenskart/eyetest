@@ -105,34 +105,31 @@ class RowContext:
         self._derive_flip_state()
         self._derive_eye_tested()
     
-    def has_sph_change(self, prev: Optional['RowContext']) -> bool:
+    def has_sph_change(self, prev: Optional['RowContext'], tolerance: float = 0.001) -> bool:
         """Check if SPH changed from previous row."""
         if prev is None:
             return False
         
-        tolerance = 0.001
         r_changed = abs(self.r_sph - prev.r_sph) > tolerance
         l_changed = abs(self.l_sph - prev.l_sph) > tolerance
         
         return r_changed or l_changed
     
-    def has_cyl_change(self, prev: Optional['RowContext']) -> bool:
+    def has_cyl_change(self, prev: Optional['RowContext'], tolerance: float = 0.001) -> bool:
         """Check if CYL changed from previous row."""
         if prev is None:
             return False
         
-        tolerance = 0.001
         r_changed = abs(self.r_cyl - prev.r_cyl) > tolerance
         l_changed = abs(self.l_cyl - prev.l_cyl) > tolerance
         
         return r_changed or l_changed
     
-    def has_axis_change(self, prev: Optional['RowContext']) -> bool:
+    def has_axis_change(self, prev: Optional['RowContext'], tolerance: float = 0.5) -> bool:
         """Check if AXIS changed from previous row."""
         if prev is None:
             return False
         
-        tolerance = 0.5
         r_changed = abs(self.r_axis - prev.r_axis) > tolerance
         l_changed = abs(self.l_axis - prev.l_axis) > tolerance
         

@@ -12,19 +12,27 @@ from pathlib import Path
 
 from core.state_machine import StateMachine
 from core.context import RowContext
+from core.derived_variables import DerivedVariables, PatientInput, HardwareInput
 
 
 class InteractiveSession:
     """Orchestrates an interactive eye test session."""
     
     def __init__(self, base_url: str = "https://rajasthan-royals.preprod.lenskart.com",
-                 phoropter_id: str = "phoropter-1"):
+                 phoropter_id: str = "phoropter-1",
+                 patient_data: Optional[PatientInput] = None,
+                 hardware_data: Optional[HardwareInput] = None):
         self.base_url = base_url
         self.phoropter_id = phoropter_id
         self.api_endpoint = f"{base_url}/phoropter/{phoropter_id}/run-tests"
         
+        # Initialize Intelligence if data provided
+        self.dv = None
+        if patient_data and hardware_data:
+            self.dv = DerivedVariables(patient_data, hardware_data)
+        
         # Initialize state machine
-        self.state_machine = StateMachine()
+        self.state_machine = StateMachine(dv=self.dv)
         
         # Phase name mapping
         self.phase_names = {
@@ -44,10 +52,11 @@ class InteractiveSession:
             "near_add_right": "Phase P: Near Vision - Right Eye ADD",
             "near_add_left": "Phase Q: Near Vision - Left Eye ADD",
             "near_add_bino": "Phase R: Near Vision - Binocular ADD",
+            "ESCALATE": "ESCALATE: Clinical Review Required",
         }
         
         # Current test state
-        self.current_phase = "distance_vision"
+        self.current_phase = self.state_machine.current_phase
         self.current_row = self._init_row()
         self.session_history: List[RowContext] = []
         
@@ -83,6 +92,9 @@ class InteractiveSession:
         self.validation_right_status = None
         self.validation_left_status = None
         
+        self.last_clear_row: Optional[RowContext] = None
+        self._phase_step_count = 0
+        
         # Refraction state tracking
         # All available charts for selection
         self.all_charts = [
@@ -113,6 +125,7 @@ class InteractiveSession:
         self.jcc_same_choice_count = 0
         self.duochrome_last_choice: Optional[str] = None
         self.duochrome_same_choice_count = 0
+        self.duochrome_flip_count = 0
         
         # Chart mappings (snellen_20_20 used by protocol for validation phases)
         self.chart_map = {
@@ -254,6 +267,9 @@ class InteractiveSession:
             self.duochrome_last_choice is not None
             and self.duochrome_same_choice_count >= 1
         )
+        if reversal:
+            self.duochrome_flip_count += 1
+            
         self.duochrome_last_choice = choice
         self.duochrome_same_choice_count = 1
         return reversal
@@ -372,6 +388,9 @@ class InteractiveSession:
                 jcc_eye_mode = "BINO"
             self.current_row.occluder_state = occluder
         
+        # Check for drift
+        self._check_drift()
+        
         self._post_to_phoropter(self.api_endpoint, payload)
         print(f"✓ Power set: R({r_sph}/{r_cyl}/{r_axis}) L({l_sph}/{l_cyl}/{l_axis}) Occ: {occluder}")
         
@@ -380,6 +399,21 @@ class InteractiveSession:
         if jcc_eye_mode and not is_jcc_phase:
             self.jcc_control(jcc_eye_mode)
             print(f"✓ JCC eye mode set: {jcc_eye_mode}")
+    
+    def _check_drift(self):
+        """Flag an anomaly if power drifts too far from start."""
+        if not self.dv:
+            return
+            
+        r_drift = abs(self.current_row.r_sph - self.dv.dv_start_rx["r"]["sph"])
+        l_drift = abs(self.current_row.l_sph - self.dv.dv_start_rx["l"]["sph"])
+        
+        # Drift limit based on Excel: dv_max_delta_from_start_sph (defaults to 2.0)
+        max_drift = 2.0 
+        
+        if r_drift > max_drift or l_drift > max_drift:
+            print(f"⚠️ DRIFT ALERT: Power moved {max(r_drift, l_drift):.2f}D from start.")
+            self.current_row.anomalies_fixed += 1 # Tracking alerts in CSV anomalies column
     
     def set_power_with_prev_state(self, 
                                    prev_r_sph: float, prev_r_cyl: float, prev_r_axis: float,
@@ -433,6 +467,9 @@ class InteractiveSession:
         self.current_row.l_cyl = l_cyl
         self.current_row.l_axis = l_axis
         
+        # Check for drift
+        self._check_drift()
+        
         self._post_to_phoropter(self.api_endpoint, payload)
         print(f"✓ Power set with prev state: R({r_sph}/{r_cyl}/{r_axis}) L({l_sph}/{l_cyl}/{l_axis})")
         print(f"  Previous state: R({prev_r_sph}/{prev_r_cyl}/{prev_r_axis}) L({prev_l_sph}/{prev_l_cyl}/{prev_l_axis})")
@@ -484,6 +521,9 @@ class InteractiveSession:
     
     def get_question(self) -> str:
         """Get current question based on phase and state."""
+        if self.current_phase == "ESCALATE":
+            return "⚠️ WARNING: High clinical risk detected (Symptoms/History). Optometrist review is strongly recommended."
+        
         phase_config = self.state_machine.protocol["phases"].get(self.current_phase, {})
         questions = phase_config.get("questions", [])
         
@@ -501,6 +541,9 @@ class InteractiveSession:
     
     def get_intents(self) -> List[str]:
         """Get available intents for current phase."""
+        if self.current_phase == "ESCALATE":
+            return ["Optom Review Completed", "Proceed at Own Risk", "Discard Session"]
+        
         phase_config = self.state_machine.protocol["phases"].get(self.current_phase, {})
         intents = phase_config.get("intents", [])
         
@@ -525,39 +568,105 @@ class InteractiveSession:
     def start_distance_vision(self):
         """Start Phase A: Distance Vision."""
         self.session_start_time = datetime.now()
+        
+        # Check for immediate escalation
+        if self.state_machine.current_phase == "ESCALATE":
+            return self._build_response()
+
         self.current_phase = "distance_vision"
         self._track_phase_entry(self.current_phase)
         
         print("\n" + "="*60)
-        print(self.phase_names[self.current_phase].upper())
+        print(self.phase_names.get(self.current_phase, self.current_phase).upper())
         print("="*60)
         
-        # Note: Frontend already calls resetPhoropter() before starting session
-        # self.reset_phoropter()
+        # Use intelligent starting RX if available
+        if self.dv:
+            start_rx = self.dv.dv_start_rx
+            self.current_row.r_sph = start_rx["r"]["sph"]
+            self.current_row.r_cyl = start_rx["r"]["cyl"]
+            self.current_row.r_axis = start_rx["r"]["axis"]
+            self.current_row.l_sph = start_rx["l"]["sph"]
+            self.current_row.l_cyl = start_rx["l"]["cyl"]
+            self.current_row.l_axis = start_rx["l"]["axis"]
+            print(f"✓ Using Intelligent Start RX ({self.dv.dv_start_source_policy})")
+            
+            # Apply Fogging if policy requires
+            if self.dv.dv_fogging_policy == "Strong_Fog":
+                self.current_row.r_sph += 1.0
+                self.current_row.l_sph += 1.0
+                print("✓ Applied Strong Fog (+1.00D)")
+            elif self.dv.dv_fogging_policy == "Standard_Fog":
+                self.current_row.r_sph += 0.75
+                self.current_row.l_sph += 0.75
+                print("✓ Applied Standard Fog (+0.75D)")
+
         self.current_chart_index = 0
         self.set_chart(self.all_charts[0])
         self.current_row.occluder_state = "BINO"
         self.current_row.chart_display = self.all_charts[0]
         
-        question = self.get_question()
-        intents = self.get_intents()
+        # Apply the initial power to phoropter
+        self.set_power(
+            r_sph=self.current_row.r_sph, r_cyl=self.current_row.r_cyl, r_axis=self.current_row.r_axis,
+            l_sph=self.current_row.l_sph, l_cyl=self.current_row.l_cyl, l_axis=self.current_row.l_axis,
+            occluder="BINO"
+        )
         
-        return {
-            "phase": self.phase_names[self.current_phase],
-            "question": question,
-            "intents": intents,
-            "chart": self.all_charts[0],
-            "occluder": "BINO",
-            "power": {
-                "right": {"sph": 0.0, "cyl": 0.0, "axis": 180.0},
-                "left": {"sph": 0.0, "cyl": 0.0, "axis": 180.0},
-            },
-            "chart_info": {
-                "available_charts": self.all_charts,
-                "current_index": self.current_chart_index,
-                "current_chart": self.all_charts[self.current_chart_index]
-            }
-        }
+        return self._build_response()
+
+    def _check_timeout(self) -> bool:
+        """Checks if the current phase has timed out or exceeded max steps."""
+        if not self.dv:
+            return False
+            
+        phase = self.current_phase
+        start_time = self._phase_start_times.get(phase)
+        if not start_time:
+            return False
+            
+        elapsed = (datetime.now() - start_time).total_seconds()
+        timeout = self.dv.dv_phase_timeout_seconds.get(phase, 180)
+        
+        max_steps = self.dv.dv_max_steps_per_phase
+        
+        if elapsed > timeout:
+            print(f"⚠️ Phase {phase} TIMEOUT (elapsed: {elapsed:.1f}s, limit: {timeout}s)")
+            return True
+        
+        if self._phase_step_count >= max_steps:
+            print(f"⚠️ Phase {phase} MAX STEPS reached ({self._phase_step_count})")
+            return True
+            
+        return False
+
+    def _apply_accept_best(self) -> Dict:
+        """Policy: ACCEPT_BEST. Restores the last known 'Clear' state and moves to next phase."""
+        if self.last_clear_row:
+            print(f"✅ ACCEPT_BEST: Restoring last clear state from row {self.last_clear_row.row_number}")
+            self.current_row = self._copy_row_state()
+            self.current_row.r_sph = self.last_clear_row.r_sph
+            self.current_row.r_cyl = self.last_clear_row.r_cyl
+            self.current_row.r_axis = self.last_clear_row.r_axis
+            self.current_row.l_sph = self.last_clear_row.l_sph
+            self.current_row.l_cyl = self.last_clear_row.l_cyl
+            self.current_row.l_axis = self.last_clear_row.l_axis
+            
+            # Sync phoropter
+            self.set_power(
+                r_sph=self.current_row.r_sph, r_cyl=self.current_row.r_cyl, r_axis=self.current_row.r_axis,
+                l_sph=self.current_row.l_sph, l_cyl=self.current_row.l_cyl, l_axis=self.current_row.l_axis
+            )
+        else:
+            print("⚠️ ACCEPT_BEST: No 'Clear' state found. Using CURRENT state.")
+            
+        # Transition to next phase automatically
+        self.state_machine.force_transition_next()
+        self.current_phase = self.state_machine.current_phase
+        self._track_phase_entry(self.current_phase)
+        self._phase_step_count = 0
+        
+        return self._build_response()
     
     def process_response(self, intent: str) -> Dict:
         """Process patient response and return next question."""
@@ -567,48 +676,95 @@ class InteractiveSession:
         self._stamp_row(self.current_row, "QnA", delta)
         self.session_history.append(self.current_row)
         
+        # Increment step count for current phase
+        self._phase_step_count += 1
+        
+        # Check for Timeout / Max Steps (ACCEPT_BEST policy)
+        if self._check_timeout():
+            return self._apply_accept_best()
+        
+        # Update "Last Clear" power if intent suggests clarity (for ACCEPT_BEST policy)
+        clear_intents = ["Able to read", "Yes", "Clear", "Sharp", "Better", "Same", "No change"]
+        if any(ci.lower() in intent.lower() for ci in clear_intents):
+            self.last_clear_row = self._copy_row_state()
+            
+        # Capture current phase before processing to detect transition
+        old_phase = self.current_phase
+        
         # Process based on current phase
         if self.current_phase == "distance_vision":
-            return self._process_distance_vision(intent)
+            response = self._process_distance_vision(intent)
         elif self.current_phase == "right_eye_refraction":
-            return self._process_right_eye_refraction(intent)
+            response = self._process_right_eye_refraction(intent)
         elif self.current_phase == "jcc_axis_right":
-            return self._process_jcc_axis_right(intent)
+            response = self._process_jcc_axis_right(intent)
         elif self.current_phase == "jcc_power_right":
-            return self._process_jcc_power_right(intent)
+            response = self._process_jcc_power_right(intent)
         elif self.current_phase == "duochrome_right":
-            return self._process_duochrome_right(intent)
+            response = self._process_duochrome_right(intent)
         elif self.current_phase == "validation_right":
-            return self._process_validation_right(intent)
+            response = self._process_validation_right(intent)
         elif self.current_phase == "left_eye_refraction":
-            return self._process_left_eye_refraction(intent)
+            response = self._process_left_eye_refraction(intent)
         elif self.current_phase == "jcc_axis_left":
-            return self._process_jcc_axis_left(intent)
+            response = self._process_jcc_axis_left(intent)
         elif self.current_phase == "jcc_power_left":
-            return self._process_jcc_power_left(intent)
+            response = self._process_jcc_power_left(intent)
         elif self.current_phase == "duochrome_left":
-            return self._process_duochrome_left(intent)
+            response = self._process_duochrome_left(intent)
         elif self.current_phase == "validation_left":
-            return self._process_validation_left(intent)
+            response = self._process_validation_left(intent)
         elif self.current_phase == "validation_distance":
-            return self._process_validation_distance(intent)
+            response = self._process_validation_distance(intent)
         elif self.current_phase == "binocular_balance":
-            return self._process_binocular_balance(intent)
+            response = self._process_binocular_balance(intent)
         elif self.current_phase == "near_add_right":
-            return self._process_near_add_right(intent)
+            response = self._process_near_add_right(intent)
         elif self.current_phase == "near_add_left":
-            return self._process_near_add_left(intent)
+            response = self._process_near_add_left(intent)
         elif self.current_phase == "near_add_bino":
-            return self._process_near_add_bino(intent)
-        
-        # Default: complete
-        return {
-            "phase": "complete",
-            "status": "complete",
-            "question": "Test complete!",
-            "intents": [],
-        }
+            response = self._process_near_add_bino(intent)
+        elif self.current_phase == "ESCALATE":
+            response = self._process_escalate(intent)
+        else:
+            # Default: complete
+            response = {
+                "phase": "complete",
+                "status": "complete",
+                "question": "Test complete!",
+                "intents": [],
+            }
+            
+        # Check for phase transition to reset step count and stamp start time
+        if self.current_phase != old_phase:
+            print(f"🔄 Phase transition: {old_phase} -> {self.current_phase}")
+            self._phase_step_count = 0
+            self._track_phase_entry(self.current_phase)
+            
+        return response
     
+    def _process_escalate(self, intent: str) -> Dict:
+        """Process response in ESCALATE state."""
+        if intent == "Optom Review Completed":
+            # Optom has manually reviewed and wants to continue. 
+            # We move to distance vision by default.
+            print("✓ Optom review completed. Moving to distance vision.")
+            self.state_machine.current_phase = "distance_vision"
+            return self.start_distance_vision()
+        elif intent == "Proceed at Own Risk":
+            print("✓ Operator chose to proceed at own risk.")
+            self.state_machine.current_phase = "distance_vision"
+            return self.start_distance_vision()
+        elif intent == "Discard Session":
+            print("⚠️ Session discarded.")
+            return {
+                "phase": "discarded",
+                "status": "complete",
+                "question": "Session discarded.",
+                "intents": []
+            }
+        return self._build_response()
+
     def switch_chart(self, chart_index: int) -> Dict:
         """Switch to a different chart during distance vision or refraction phase.
         
@@ -1671,7 +1827,12 @@ class InteractiveSession:
             self.jcc_control("decrease")  # Phoropter decreases SPH by 0.25D
             self.current_row = self._copy_row_state()
             self.current_row.r_sph -= 0.25
-            if reversal:
+            
+            # Check for reversal OR flip limit
+            max_flips = self.dv.dv_duochrome_max_flips if self.dv else 4
+            if reversal or self.duochrome_flip_count >= max_flips:
+                if self.duochrome_flip_count >= max_flips:
+                    print(f"⚠️ Duochrome flip limit ({max_flips}) reached. Moving to validation.")
                 response = self._transition_to_validation_right()
                 response['power'] = self._build_response()['power']
                 return response
@@ -1684,7 +1845,12 @@ class InteractiveSession:
             self.jcc_control("increase")
             self.current_row = self._copy_row_state()
             self.current_row.r_sph += 0.25
-            if reversal:
+            
+            # Check for reversal OR flip limit
+            max_flips = self.dv.dv_duochrome_max_flips if self.dv else 4
+            if reversal or self.duochrome_flip_count >= max_flips:
+                if self.duochrome_flip_count >= max_flips:
+                    print(f"⚠️ Duochrome flip limit ({max_flips}) reached. Moving to validation.")
                 response = self._transition_to_validation_right()
                 response['power'] = self._build_response()['power']
                 return response
@@ -1758,7 +1924,12 @@ class InteractiveSession:
             self.jcc_control("decrease")  # Phoropter decreases SPH by 0.25D
             self.current_row = self._copy_row_state()
             self.current_row.l_sph -= 0.25
-            if reversal:
+            
+            # Check for reversal OR flip limit
+            max_flips = self.dv.dv_duochrome_max_flips if self.dv else 4
+            if reversal or self.duochrome_flip_count >= max_flips:
+                if self.duochrome_flip_count >= max_flips:
+                    print(f"⚠️ Duochrome flip limit ({max_flips}) reached. Moving to validation.")
                 response = self._transition_to_validation_left()
                 if 'power' not in response:
                     response['power'] = self._build_response()['power']
@@ -1772,7 +1943,12 @@ class InteractiveSession:
             self.jcc_control("increase")
             self.current_row = self._copy_row_state()
             self.current_row.l_sph += 0.25
-            if reversal:
+            
+            # Check for reversal OR flip limit
+            max_flips = self.dv.dv_duochrome_max_flips if self.dv else 4
+            if reversal or self.duochrome_flip_count >= max_flips:
+                if self.duochrome_flip_count >= max_flips:
+                    print(f"⚠️ Duochrome flip limit ({max_flips}) reached. Moving to validation.")
                 response = self._transition_to_validation_left()
                 if 'power' not in response:
                     response['power'] = self._build_response()['power']

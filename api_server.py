@@ -201,13 +201,61 @@ def sync_phoropter_state(device_id):
 @app.route('/api/session/start', methods=['POST'])
 def start_session():
     """Start a new eye test session."""
+    from core.derived_variables import PatientInput, HardwareInput
+    
     payload = request.json or {}
     _log_api_command("/api/session/start", payload)
     session_id = payload.get('session_id', 'default')
     phoropter_id = payload.get('phoropter_id', 'phoropter-1')
     
-    # Create new session with the specified phoropter device ID and URL
-    session = InteractiveSession(base_url=PHOROPTER_BASE_URL, phoropter_id=phoropter_id)
+    # Extract Intelligence Data
+    patient_data = None
+    hardware_data = None
+    
+    p_info = payload.get('patient_info', {})
+    if p_info:
+        patient_data = PatientInput(
+            age_years=int(p_info.get('age', 30)),
+            occupation_type=p_info.get('occupation', 'Other'),
+            driving_time_hours=float(p_info.get('driving_hours', 0)),
+            screen_time_hours=float(p_info.get('screen_hours', 4)),
+            near_work_hours=float(p_info.get('near_work_hours', 2)),
+            near_priority=p_info.get('near_priority', 'Medium'),
+            symptoms=p_info.get('symptoms', []),
+            medical_history=p_info.get('medical_history', []),
+            satisfaction_with_current_rx=p_info.get('satisfaction', 'Neutral'),
+            last_eye_test_months=int(p_info.get('last_test_months', 12)),
+            comfort_first=bool(p_info.get('comfort_first', False)),
+            blur_complaint=bool(p_info.get('blur_complaint', False))
+        )
+    
+    ar = payload.get('ar', {})
+    lenso = payload.get('lenso', {})
+    if ar or lenso:
+        hardware_data = HardwareInput(
+            ar_r_sph=float(ar.get('right_eye', {}).get('sph', 0)),
+            ar_r_cyl=float(ar.get('right_eye', {}).get('cyl', 0)),
+            ar_r_axis=float(ar.get('right_eye', {}).get('axis', 180)),
+            ar_l_sph=float(ar.get('left_eye', {}).get('sph', 0)),
+            ar_l_cyl=float(ar.get('left_eye', {}).get('cyl', 0)),
+            ar_l_axis=float(ar.get('left_eye', {}).get('axis', 180)),
+            lenso_r_sph=float(lenso.get('right_eye', {}).get('sph', 0)),
+            lenso_r_cyl=float(lenso.get('right_eye', {}).get('cyl', 0)),
+            lenso_r_axis=float(lenso.get('right_eye', {}).get('axis', 180)),
+            lenso_r_add=float(lenso.get('right_eye', {}).get('add', 0)),
+            lenso_l_sph=float(lenso.get('left_eye', {}).get('sph', 0)),
+            lenso_l_cyl=float(lenso.get('left_eye', {}).get('cyl', 0)),
+            lenso_l_axis=float(lenso.get('left_eye', {}).get('axis', 180)),
+            lenso_l_add=float(lenso.get('left_eye', {}).get('add', 0))
+        )
+
+    # Create new session with intelligence
+    session = InteractiveSession(
+        base_url=PHOROPTER_BASE_URL, 
+        phoropter_id=phoropter_id,
+        patient_data=patient_data,
+        hardware_data=hardware_data
+    )
     sessions[session_id] = session
     
     # Start distance vision phase
