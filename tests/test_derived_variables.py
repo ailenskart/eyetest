@@ -150,9 +150,16 @@ class TestAgeBucket(unittest.TestCase):
         self.assertEqual(dv.dv_age_bucket, "Child")
 
     def test_child_boundary(self):
-        p = self._make_patient(17)
+        # age_child_max=17, age < 17 → Child; age 17 → Adult
+        p = self._make_patient(16)
         dv = compute_derived_variables(p, ARInput(), LensoInput(), self.cal)
         self.assertEqual(dv.dv_age_bucket, "Child")
+
+    def test_child_boundary_exclusive(self):
+        # age == age_child_max is NOT child (strict <)
+        p = self._make_patient(17)
+        dv = compute_derived_variables(p, ARInput(), LensoInput(), self.cal)
+        self.assertEqual(dv.dv_age_bucket, "Adult")
 
     def test_adult(self):
         p = self._make_patient(30)
@@ -532,11 +539,11 @@ class TestStepSizePolicy(unittest.TestCase):
         dv = compute_derived_variables(p, ARInput(), LensoInput(), self.cal)
         self.assertEqual(dv.dv_step_size_policy, "Aggressive")
 
-    def test_standard_presbyope_stable(self):
+    def test_aggressive_presbyope_stable(self):
         p = PatientInput(patient_id="P1", visit_id="V1", age_years=50)
         dv = compute_derived_variables(p, ARInput(), LensoInput(), self.cal)
-        # Presbyope is not "Adult", so not Aggressive; not unstable, so not Conservative
-        self.assertEqual(dv.dv_step_size_policy, "Standard")
+        # Stable + not unstable/high-risk → Aggressive (age bucket not a factor)
+        self.assertEqual(dv.dv_step_size_policy, "Aggressive")
 
 
 class TestEscalationFlags(unittest.TestCase):
@@ -715,8 +722,8 @@ class TestFullProfile(unittest.TestCase):
         self.assertEqual(dv.dv_distance_priority, "High")
         self.assertEqual(dv.dv_endpoint_bias_policy, "Overcorrect")
         self.assertEqual(dv.dv_ar_lenso_mismatch_level_RE, "Large")
-        # Large mismatch → Hybrid overrides unsatisfied → Start_AR
-        self.assertEqual(dv.dv_start_source_policy, "Hybrid")
+        # Unsatisfied is checked before large mismatch per spreadsheet → Start_AR
+        self.assertEqual(dv.dv_start_source_policy, "Start_AR")
         self.assertTrue(dv.dv_anomaly_watch)
         self.assertEqual(dv.dv_add_expected, "Likely")
 
