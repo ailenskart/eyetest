@@ -159,6 +159,10 @@ class InteractiveSession:
         row.phase_id = self.current_phase
         row.phase_name = self.phase_names.get(self.current_phase, self.current_phase)
         row.optometrist_question = self.get_question()
+        
+        # Explicitly sync ADD values to row before saving
+        row.r_add = self.add_right
+        row.l_add = self.add_left
 
     def _compute_change_delta(self, intent: str, interaction_type: str) -> str:
         """Compute a human-readable change description for the current row.
@@ -2296,6 +2300,13 @@ class InteractiveSession:
             return response
 
         elif intent == "Confirmed":
+            # Append final state to history so end_session captures the correct ADD power
+            final_row = self._copy_row_state()
+            final_row.patient_answer_intent = "Confirmed Final"
+            delta = self._compute_change_delta("Confirmed Final", "QnA")
+            self._stamp_row(final_row, "QnA", delta)
+            self.session_history.append(final_row)
+            
             return {
                 "phase": "complete",
                 "status": "complete",
@@ -2326,9 +2337,11 @@ class InteractiveSession:
         new_row.r_sph = self.current_row.r_sph
         new_row.r_cyl = self.current_row.r_cyl
         new_row.r_axis = self.current_row.r_axis
+        new_row.r_add = self.current_row.r_add
         new_row.l_sph = self.current_row.l_sph
         new_row.l_cyl = self.current_row.l_cyl
         new_row.l_axis = self.current_row.l_axis
+        new_row.l_add = self.current_row.l_add
         new_row.occluder_state = self.current_row.occluder_state
         new_row.chart_display = self.current_row.chart_display
         return new_row
@@ -2339,9 +2352,11 @@ class InteractiveSession:
         new_row.r_sph = state_dict.get('r_sph', 0.0)
         new_row.r_cyl = state_dict.get('r_cyl', 0.0)
         new_row.r_axis = state_dict.get('r_axis', 180.0)
+        new_row.r_add = state_dict.get('r_add', 0.0)
         new_row.l_sph = state_dict.get('l_sph', 0.0)
         new_row.l_cyl = state_dict.get('l_cyl', 0.0)
         new_row.l_axis = state_dict.get('l_axis', 180.0)
+        new_row.l_add = state_dict.get('l_add', 0.0)
         new_row.occluder_state = state_dict.get('occluder_state', 'BINO')
         new_row.chart_display = state_dict.get('chart_display', '')
         return new_row
@@ -2784,9 +2799,11 @@ class InteractiveSession:
         self.current_row.r_sph = prev_row.r_sph
         self.current_row.r_cyl = prev_row.r_cyl
         self.current_row.r_axis = prev_row.r_axis
+        self.current_row.r_add = prev_row.r_add
         self.current_row.l_sph = prev_row.l_sph
         self.current_row.l_cyl = prev_row.l_cyl
         self.current_row.l_axis = prev_row.l_axis
+        self.current_row.l_add = prev_row.l_add
         
         # Reset refraction state
         self.current_chart_index = 0

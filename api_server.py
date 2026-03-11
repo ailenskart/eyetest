@@ -25,13 +25,6 @@ import urllib.parse
 import urllib.request
 
 from interactive_session import InteractiveSession
-from core.patient_input import PatientInput
-from core.ar_lenso_input import ARInput, LensoInput, EyeRx
-from core.derived_variables import compute_derived_variables, load_calibration
-from core.fsm_session import FSMSession
-import copy
-import shutil
-import yaml
 
 # Load io/outputs.py directly to avoid clash with Python's built-in io module
 import importlib.util as _ilu
@@ -73,15 +66,6 @@ SESSIONS_DIR = LOGS_DIR / "sessions"
 COMBINED_LOG_PATH = LOGS_DIR / "combined_log.csv"
 COMBINED_META_PATH = LOGS_DIR / "combined_metadata.csv"
 SESSIONS_DIR.mkdir(parents=True, exist_ok=True)
-
-# Calibration config paths
-CALIBRATION_PATH = Path(__file__).parent / "config" / "calibration.yaml"
-CALIBRATION_DEFAULTS_PATH = Path(__file__).parent / "config" / "calibration_defaults.yaml"
-CALIBRATION_HISTORY_PATH = Path(__file__).parent / "config" / "calibration_history.json"
-
-# Ensure default calibration snapshot exists (for reset)
-if not CALIBRATION_DEFAULTS_PATH.exists() and CALIBRATION_PATH.exists():
-    shutil.copy2(CALIBRATION_PATH, CALIBRATION_DEFAULTS_PATH)
 
 
 def _log_api_command(action: str, payload: dict) -> None:
@@ -354,9 +338,15 @@ def sync_power(session_id):
     if 'sph' in right: session.current_row.r_sph = float(right['sph'])
     if 'cyl' in right: session.current_row.r_cyl = float(right['cyl'])
     if 'axis' in right: session.current_row.r_axis = _norm_axis(right['axis'])
+    if 'add' in right: 
+        session.current_row.r_add = float(right['add'])
+        session.add_right = float(right['add'])
     if 'sph' in left: session.current_row.l_sph = float(left['sph'])
     if 'cyl' in left: session.current_row.l_cyl = float(left['cyl'])
     if 'axis' in left: session.current_row.l_axis = _norm_axis(left['axis'])
+    if 'add' in left: 
+        session.current_row.l_add = float(left['add'])
+        session.add_left = float(left['add'])
 
     # Record as a Manual row in session history
     delta = session._compute_change_delta("", "Manual")
@@ -503,439 +493,6 @@ def discard_session(session_id):
     return jsonify({"session_id": session_id, "status": "discarded"})
 
 
-# =============================================================================
-# Patient Intake Endpoints
-# =============================================================================
-
-@app.route('/api/intake', methods=['POST'])
-def submit_intake():
-    """
-    Submit patient intake data, compute derived variables, and optionally
-    initialize an FSM-v2 session.
-
-    Expects JSON body with:
-      - patient: {...}      (PatientInput fields)
-      - ar: {re:{...}, le:{...}}   (ARInput)
-      - lenso: {re:{...}, le:{...}} (LensoInput)
-      - session_id: (optional) defaults to visit_id or auto-generated
-      - phoropter_id: (optional) defaults to 'phoropter-1'
-
-    Returns:
-      - derived_variables: all 36 computed DVs
-      - start_rx: starting lens values
-      - session_id: for subsequent /api/session/<id>/respond calls
-    """
-    payload = _request_payload()
-    _log_api_command("/api/intake", {"keys": list(payload.keys())})
-
-    # Parse patient input
-    patient_data = payload.get("patient", {})
-    patient = PatientInput.from_dict(patient_data)
-
-    # Validate
-    errors = patient.validate()
-    if errors:
-        return jsonify({"error": "Validation failed", "details": errors}), 400
-
-    # Parse AR / Lenso
-    ar_data = payload.get("ar", {})
-    lenso_data = payload.get("lenso", {})
-    ar = ARInput.from_dict(ar_data) if ar_data else ARInput()
-    lenso = LensoInput.from_dict(lenso_data) if lenso_data else LensoInput()
-
-    # Compute derived variables
-    try:
-        calibration = load_calibration(str(CALIBRATION_PATH))
-        dv = compute_derived_variables(patient, ar, lenso, calibration)
-    except Exception as e:
-        return jsonify({"error": f"Derived variable computation failed: {e}"}), 500
-
-    # Build response
-    session_id = payload.get("session_id", patient.visit_id or f"s_{datetime.now().strftime('%Y%m%d_%H%M%S')}")
-    phoropter_id = payload.get("phoropter_id", "phoropter-1")
-
-    return jsonify({
-        "status": "intake_complete",
-        "session_id": session_id,
-        "phoropter_id": phoropter_id,
-        "derived_variables": dv.to_dict(),
-        "start_rx": {
-            "right_eye": {
-                "sph": dv.dv_start_rx_RE_sph,
-                "cyl": dv.dv_start_rx_RE_cyl,
-                "axis": dv.dv_start_rx_RE_axis,
-            },
-            "left_eye": {
-                "sph": dv.dv_start_rx_LE_sph,
-                "cyl": dv.dv_start_rx_LE_cyl,
-                "axis": dv.dv_start_rx_LE_axis,
-            },
-        },
-        "patient_summary": {
-            "age": patient.age_years,
-            "age_bucket": dv.dv_age_bucket,
-            "risk_profile": {
-                "symptom": dv.dv_symptom_risk_level,
-                "medical": dv.dv_medical_risk_level,
-                "stability": dv.dv_stability_level,
-            },
-            "requires_optom_review": dv.dv_requires_optom_review,
-            "anomaly_watch": dv.dv_anomaly_watch,
-        },
-    })
-
-
-@app.route('/api/intake/preview', methods=['POST'])
-def preview_intake():
-    """
-    Preview derived variables from intake data without starting a session.
-    Used by the intake form to show a live DV preview panel.
-
-    Same body format as /api/intake.
-    Returns only the derived variables (no session created).
-    """
-    payload = _request_payload()
-
-    patient_data = payload.get("patient", {})
-    patient = PatientInput.from_dict(patient_data)
-
-    ar_data = payload.get("ar", {})
-    lenso_data = payload.get("lenso", {})
-    ar = ARInput.from_dict(ar_data) if ar_data else ARInput()
-    lenso = LensoInput.from_dict(lenso_data) if lenso_data else LensoInput()
-
-    try:
-        calibration = load_calibration(str(CALIBRATION_PATH))
-        dv = compute_derived_variables(patient, ar, lenso, calibration)
-    except Exception as e:
-        return jsonify({"error": f"Preview failed: {e}"}), 500
-
-    return jsonify({
-        "status": "preview",
-        "derived_variables": dv.to_dict(),
-    })
-
-
-# =============================================================================
-# FSMv2 Session Endpoints (uses FSM + phoropter sync)
-# =============================================================================
-
-# Separate storage for FSM-based sessions
-fsm_sessions: dict = {}
-
-
-@app.route('/api/fsm/start', methods=['POST'])
-def fsm_start():
-    """
-    Start an FSMv2 session: submit intake data, compute DVs, initialize FSM,
-    set initial power on phoropter, and return the first question.
-
-    Body: {
-        patient: {...},
-        ar: {re:{sph,cyl,axis}, le:{sph,cyl,axis}},
-        lenso: {re:{sph,cyl,axis}, le:{sph,cyl,axis}},
-        session_id: (optional),
-        phoropter_id: (optional, default 'phoropter-1')
-    }
-    """
-    payload = _request_payload()
-    _log_api_command("/api/fsm/start", {"keys": list(payload.keys())})
-
-    # Parse patient
-    patient_data = payload.get("patient", {})
-    patient = PatientInput.from_dict(patient_data)
-    errors = patient.validate()
-    if errors:
-        return jsonify({"error": "Validation failed", "details": errors}), 400
-
-    # Parse AR / Lenso
-    ar_data = payload.get("ar", {})
-    lenso_data = payload.get("lenso", {})
-    ar = ARInput.from_dict(ar_data) if ar_data else ARInput()
-    lenso = LensoInput.from_dict(lenso_data) if lenso_data else LensoInput()
-
-    # Session identifiers
-    session_id = payload.get(
-        "session_id",
-        patient.visit_id or f"fsm_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
-    )
-    phoropter_id = payload.get("phoropter_id", "phoropter-1")
-
-    # Create FSM session with phoropter connection
-    fsm_sess = FSMSession(base_url=PHOROPTER_BASE_URL, phoropter_id=phoropter_id)
-
-    try:
-        calibration = load_calibration(str(CALIBRATION_PATH))
-        result = fsm_sess.initialize(patient, ar, lenso, calibration)
-    except Exception as e:
-        return jsonify({"error": f"FSM initialization failed: {e}"}), 500
-
-    fsm_sessions[session_id] = fsm_sess
-
-    return jsonify({
-        "session_id": session_id,
-        "phoropter_id": phoropter_id,
-        "status": "started",
-        "derived_variables": fsm_sess.dv.to_dict(),
-        **result,
-    })
-
-
-@app.route('/api/fsm/<session_id>/respond', methods=['POST'])
-def fsm_respond(session_id):
-    """
-    Process a patient response in an FSMv2 session.
-    Runs the FSM transition, syncs lens values to phoropter, returns next state.
-
-    Body: { "response": "READABLE" }
-    """
-    if session_id not in fsm_sessions:
-        return jsonify({"error": "FSM session not found"}), 404
-
-    payload = _request_payload()
-    _log_api_command(f"/api/fsm/{session_id}/respond", payload)
-    response = payload.get("response") or payload.get("intent")
-    if not response:
-        return jsonify({"error": "response required"}), 400
-
-    fsm_sess = fsm_sessions[session_id]
-    result = fsm_sess.respond(response)
-
-    return jsonify({
-        "session_id": session_id,
-        "status": "complete" if fsm_sess.is_complete else "active",
-        **result,
-    })
-
-
-@app.route('/api/fsm/<session_id>/status', methods=['GET'])
-def fsm_status(session_id):
-    """Get full FSMv2 session state."""
-    if session_id not in fsm_sessions:
-        return jsonify({"error": "FSM session not found"}), 404
-
-    fsm_sess = fsm_sessions[session_id]
-    return jsonify({
-        "session_id": session_id,
-        "status": "complete" if fsm_sess.is_complete else "active",
-        **fsm_sess.get_state_summary(),
-    })
-
-
-@app.route('/api/fsm/<session_id>/end', methods=['POST'])
-def fsm_end(session_id):
-    """End an FSMv2 session and return final prescription."""
-    if session_id not in fsm_sessions:
-        return jsonify({"error": "FSM session not found"}), 404
-
-    fsm_sess = fsm_sessions[session_id]
-    fsm_sess.session_end_time = datetime.now()
-
-    final_rx = {}
-    if fsm_sess.fsm:
-        final_rx = fsm_sess.fsm.get_final_rx()
-
-    result = {
-        "session_id": session_id,
-        "status": "ended",
-        "final_prescription": {
-            "right_eye": final_rx.get("RE", {}),
-            "left_eye": final_rx.get("LE", {}),
-        },
-        "step_log": fsm_sess.fsm.step_log if fsm_sess.fsm else [],
-    }
-
-    del fsm_sessions[session_id]
-    return jsonify(result)
-
-
-# =============================================================================
-# Calibration Admin Endpoints
-# =============================================================================
-
-def _load_calibration_yaml() -> dict:
-    """Load calibration config from YAML file."""
-    with open(CALIBRATION_PATH) as f:
-        return yaml.safe_load(f) or {}
-
-
-def _save_calibration_yaml(data: dict) -> None:
-    """Write calibration config to YAML file with preserved formatting."""
-    with open(CALIBRATION_PATH, "w") as f:
-        yaml.dump(data, f, default_flow_style=False, sort_keys=False, allow_unicode=True)
-
-
-def _load_calibration_history() -> list:
-    """Load calibration change history."""
-    if CALIBRATION_HISTORY_PATH.exists():
-        with open(CALIBRATION_HISTORY_PATH) as f:
-            return json.load(f)
-    return []
-
-
-def _append_calibration_history(entry: dict) -> None:
-    """Append a change record to calibration history."""
-    history = _load_calibration_history()
-    history.append(entry)
-    # Keep last 500 entries
-    if len(history) > 500:
-        history = history[-500:]
-    with open(CALIBRATION_HISTORY_PATH, "w") as f:
-        json.dump(history, f, indent=2)
-
-
-@app.route('/api/calibration', methods=['GET'])
-def get_calibration():
-    """
-    Return all calibration parameters grouped by section.
-    Each section is a dict of key-value pairs.
-    """
-    try:
-        cal = _load_calibration_yaml()
-        return jsonify({
-            "status": "ok",
-            "sections": cal,
-        })
-    except Exception as e:
-        return jsonify({"error": f"Failed to load calibration: {e}"}), 500
-
-
-@app.route('/api/calibration/<section>/<key>', methods=['PUT'])
-def update_calibration_param(section, key):
-    """
-    Update a single calibration parameter.
-
-    Body: { "value": <new_value> }
-
-    Validates that section and key exist. Records change in history.
-    """
-    payload = _request_payload()
-    new_value = payload.get("value")
-
-    if new_value is None:
-        return jsonify({"error": "Missing 'value' in request body"}), 400
-
-    try:
-        cal = _load_calibration_yaml()
-    except Exception as e:
-        return jsonify({"error": f"Failed to load calibration: {e}"}), 500
-
-    if section not in cal:
-        return jsonify({"error": f"Section '{section}' not found"}), 404
-
-    if key not in cal[section]:
-        return jsonify({"error": f"Key '{key}' not found in section '{section}'"}), 404
-
-    old_value = cal[section][key]
-
-    # Type coercion: match existing type
-    try:
-        if isinstance(old_value, bool):
-            if isinstance(new_value, str):
-                new_value = new_value.lower() in ("true", "1", "yes")
-            else:
-                new_value = bool(new_value)
-        elif isinstance(old_value, int):
-            new_value = int(float(new_value))
-        elif isinstance(old_value, float):
-            new_value = float(new_value)
-        else:
-            new_value = str(new_value)
-    except (ValueError, TypeError) as e:
-        return jsonify({"error": f"Type conversion failed: {e}"}), 400
-
-    # Apply the change
-    cal[section][key] = new_value
-
-    try:
-        _save_calibration_yaml(cal)
-    except Exception as e:
-        return jsonify({"error": f"Failed to save calibration: {e}"}), 500
-
-    # Record history
-    _append_calibration_history({
-        "timestamp": datetime.now().isoformat(),
-        "section": section,
-        "key": key,
-        "old_value": old_value,
-        "new_value": new_value,
-        "action": "update",
-    })
-
-    return jsonify({
-        "status": "updated",
-        "section": section,
-        "key": key,
-        "old_value": old_value,
-        "new_value": new_value,
-    })
-
-
-@app.route('/api/calibration/reset', methods=['POST'])
-def reset_calibration():
-    """
-    Reset calibration to factory defaults.
-    Copies calibration_defaults.yaml back to calibration.yaml.
-    """
-    if not CALIBRATION_DEFAULTS_PATH.exists():
-        return jsonify({"error": "No defaults file found. Cannot reset."}), 404
-
-    try:
-        # Load current for history
-        current_cal = _load_calibration_yaml()
-
-        # Restore defaults
-        shutil.copy2(CALIBRATION_DEFAULTS_PATH, CALIBRATION_PATH)
-        default_cal = _load_calibration_yaml()
-
-        # Record in history
-        _append_calibration_history({
-            "timestamp": datetime.now().isoformat(),
-            "action": "reset_to_defaults",
-            "sections_reset": list(current_cal.keys()),
-        })
-
-        return jsonify({
-            "status": "reset_complete",
-            "sections": default_cal,
-        })
-    except Exception as e:
-        return jsonify({"error": f"Reset failed: {e}"}), 500
-
-
-@app.route('/api/calibration/history', methods=['GET'])
-def get_calibration_history():
-    """
-    Return calibration change history.
-    Supports optional query params: ?limit=50&section=FOGGING
-    """
-    history = _load_calibration_history()
-
-    # Optional filters
-    section_filter = request.args.get("section")
-    if section_filter:
-        history = [h for h in history if h.get("section") == section_filter]
-
-    limit = request.args.get("limit", 100)
-    try:
-        limit = int(limit)
-    except ValueError:
-        limit = 100
-
-    # Most recent first
-    history = list(reversed(history))[:limit]
-
-    return jsonify({
-        "status": "ok",
-        "total": len(history),
-        "entries": history,
-    })
-
-
-# =============================================================================
-# Serve Frontend
-# =============================================================================
-
 # Serve frontend (for Vercel deployment)
 _FRONTEND_DIR = Path(__file__).parent / "frontend"
 
@@ -943,18 +500,6 @@ _FRONTEND_DIR = Path(__file__).parent / "frontend"
 @app.route("/")
 def serve_index():
     return send_from_directory(_FRONTEND_DIR, "index.html")
-
-
-@app.route("/intake")
-def serve_intake():
-    """Serve the patient intake form."""
-    return send_from_directory(_FRONTEND_DIR, "intake_form.html")
-
-
-@app.route("/admin")
-def serve_admin():
-    """Serve the calibration admin UI."""
-    return send_from_directory(_FRONTEND_DIR, "admin_calibration.html")
 
 
 @app.route("/<path:path>")
@@ -968,7 +513,6 @@ def serve_frontend(path):
 if __name__ == '__main__':
     print("Starting Eye Test API Server...")
     print("Available endpoints:")
-    print("  --- Device / Broker ---")
     print("  GET  /api/devices")
     print("  GET  /api/devices/<id>")
     print("  POST /api/devices/<id>/acquire")
@@ -977,7 +521,6 @@ if __name__ == '__main__':
     print("  GET  /api/brains")
     print("  GET  /api/events")
     print("  POST /api/phoropter/<id>/sync-state")
-    print("  --- Session ---")
     print("  POST /api/session/start")
     print("  POST /api/session/<id>/respond")
     print("  POST /api/session/<id>/jump")
@@ -986,19 +529,6 @@ if __name__ == '__main__':
     print("  GET  /api/session/<id>/status")
     print("  POST /api/session/<id>/end")
     print("  POST /api/session/<id>/discard")
-    print("  --- Intake (FSMv2) ---")
-    print("  POST /api/intake")
-    print("  POST /api/intake/preview")
-    print("  --- FSMv2 Session ---")
-    print("  POST /api/fsm/start")
-    print("  POST /api/fsm/<id>/respond")
-    print("  GET  /api/fsm/<id>/status")
-    print("  POST /api/fsm/<id>/end")
-    print("  --- Calibration Admin ---")
-    print("  GET  /api/calibration")
-    print("  PUT  /api/calibration/<section>/<key>")
-    print("  POST /api/calibration/reset")
-    print("  GET  /api/calibration/history")
     host = os.environ.get('HOST', '0.0.0.0')
     port = int(os.environ.get('PORT', 5050))
     debug = os.environ.get('FLASK_ENV') == 'development'

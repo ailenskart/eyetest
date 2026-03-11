@@ -1,0 +1,166 @@
+Starting Eye Test API Server...
+Available endpoints:
+  GET  /api/devices
+  GET  /api/devices/<id>
+  POST /api/devices/<id>/acquire
+  POST /api/devices/<id>/heartbeat
+  POST /api/devices/<id>/release
+  GET  /api/brains
+  GET  /api/events
+  POST /api/phoropter/<id>/sync-state
+  POST /api/session/start
+  POST /api/session/<id>/respond
+  POST /api/session/<id>/jump
+  POST /api/session/<id>/switch-chart
+  POST /api/session/<id>/sync-power
+  GET  /api/session/<id>/status
+  POST /api/session/<id>/end
+  POST /api/session/<id>/discard
+ * Serving Flask app 'api_server'
+ * Debug mode: off
+[31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+ * Running on all addresses (0.0.0.0)
+ * Running on http://127.0.0.1:5050
+ * Running on http://192.168.30.174:5050
+[33mPress CTRL+C to quit[0m
+127.0.0.1 - - [10/Mar/2026 14:27:16] "POST /api/session/start HTTP/1.1" 200 -
+127.0.0.1 - - [10/Mar/2026 14:27:16] "POST /api/session/test_ca14c9aa/sync-power HTTP/1.1" 200 -
+127.0.0.1 - - [10/Mar/2026 14:27:16] "POST /api/session/test_ca14c9aa/jump HTTP/1.1" 200 -
+127.0.0.1 - - [10/Mar/2026 14:27:16] "POST /api/session/test_ca14c9aa/respond HTTP/1.1" 200 -
+127.0.0.1 - - [10/Mar/2026 14:27:16] "POST /api/session/test_ca14c9aa/respond HTTP/1.1" 200 -
+127.0.0.1 - - [10/Mar/2026 14:27:16] "POST /api/session/test_ca14c9aa/respond HTTP/1.1" 200 -
+127.0.0.1 - - [10/Mar/2026 14:27:16] "POST /api/session/test_ca14c9aa/respond HTTP/1.1" 200 -
+127.0.0.1 - - [10/Mar/2026 14:27:16] "POST /api/session/test_ca14c9aa/respond HTTP/1.1" 200 -
+[API] /api/session/start: {"session_id": "test_ca14c9aa", "phoropter_id": "Test (safe mode)"}
+
+============================================================
+PHASE A: DISTANCE VISION (STEP 2.1)
+============================================================
+[PHOROPTER] POST https://rajasthan-royals.preprod.lenskart.com/phoropter/Test (safe mode)/run-tests payload={"test_cases": [{"chart": {"tab": "Chart1", "chart_items": ["chart_9"]}}]}
+[PHOROPTER] Request failed: URL can't contain control characters. '/phoropter/Test (safe mode)/run-tests' (found at least ' ')
+✓ Displaying: echart_400
+[API] /api/session/test_ca14c9aa/sync-power: {"right": {"sph": -1.0, "cyl": -2.0, "axis": 90}, "left": {"sph": -2.0, "cyl": -1.0, "axis": 55}}
+DEBUG STAMP: phase=distance_vision r_add=0.0 l_add=0.0
+[API] /api/session/test_ca14c9aa/jump: {"phase": "near_add_right"}
+
+→ Jumping to Phase P: Near Vision - Right Eye ADD
+[PHOROPTER] POST https://rajasthan-royals.preprod.lenskart.com/phoropter/Test (safe mode)/run-tests payload={"test_cases": [{"chart": {"tab": "Chart5", "chart_items": ["chart_5"]}}]}
+[PHOROPTER] Request failed: URL can't contain control characters. '/phoropter/Test (safe mode)/run-tests' (found at least ' ')
+✓ Displaying: Near chart (Chart 5)
+[PHOROPTER] POST https://rajasthan-royals.preprod.lenskart.com/phoropter/Test (safe mode)/run-tests payload={"test_cases": [{"case_id": 1, "prev_right_eye": {"sph": -1.0, "cyl": -2.0, "axis": 90.0}, "prev_left_eye": {"sph": -2.0, "cyl": -1.0, "axis": 55.0}, "right_eye": {"sph": -1.0, "cyl": -2.0, "axis": 90.0, "add": 0.0}, "left_eye": {"sph": -2.0, "cyl": -1.0, "axis": 55.0, "add": 0.0}}]}
+[PHOROPTER] Request failed: URL can't contain control characters. '/phoropter/Test (safe mode)/run-tests' (found at least ' ')
+✓ Power set with prev state: R(-1.0/-2.0/90.0) L(-2.0/-1.0/55.0)
+  Previous state: R(-1.0/-2.0/90.0) L(-2.0/-1.0/55.0)
+[PHOROPTER] POST https://rajasthan-royals.preprod.lenskart.com/phoropter/Test (safe mode)/run-tests payload={"test_cases": [{"jcc": "R"}]}
+[PHOROPTER] Request failed: URL can't contain control characters. '/phoropter/Test (safe mode)/run-tests' (found at least ' ')
+✓ JCC action: R
+[API] /api/session/test_ca14c9aa/respond: {"intent": "Blurry"}
+DEBUG STAMP: phase=near_add_right r_add=0.0 l_add=0.0
+DEBUG PROCESS: intent=Blurry current_phase=near_add_right row.r_add=0.0 self.add_right=0.0
+[PHOROPTER] POST https://rajasthan-royals.preprod.lenskart.com/phoropter/Test (safe mode)/run-tests payload={"test_cases": [{"case_id": 1, "prev_right_eye": {"sph": -1.0, "cyl": -2.0, "axis": 90.0, "add": 0.0}, "prev_left_eye": {"sph": -2.0, "cyl": -1.0, "axis": 55.0, "add": 0.0}, "right_eye": {"sph": -1.0, "cyl": -2.0, "axis": 90.0, "add": 0.25}, "left_eye": {"sph": -2.0, "cyl": -1.0, "axis": 55.0, "add": 0.0}}]}
+[PHOROPTER] Request failed: URL can't contain control characters. '/phoropter/Test (safe mode)/run-tests' (found at least ' ')
+✓ Power set with prev state: R(-1.0/-2.0/90.0) L(-2.0/-1.0/55.0)
+  Previous state: R(-1.0/-2.0/90.0) L(-2.0/-1.0/55.0)
+[API] /api/session/test_ca14c9aa/respond: {"intent": "Comfortable"}
+DEBUG STAMP: phase=near_add_right r_add=0.25 l_add=0.0
+DEBUG PROCESS: intent=Comfortable current_phase=near_add_right row.r_add=0.25 self.add_right=0.25
+
+→ Transitioning to Phase Q: Near Vision - Left Eye ADD
+[PHOROPTER] POST https://rajasthan-royals.preprod.lenskart.com/phoropter/Test (safe mode)/run-tests payload={"test_cases": [{"chart": {"tab": "Chart5", "chart_items": ["chart_5"]}}]}
+[PHOROPTER] Request failed: URL can't contain control characters. '/phoropter/Test (safe mode)/run-tests' (found at least ' ')
+✓ Displaying: Near chart (Chart 5)
+[PHOROPTER] POST https://rajasthan-royals.preprod.lenskart.com/phoropter/Test (safe mode)/run-tests payload={"test_cases": [{"jcc": "L"}]}
+[PHOROPTER] Request failed: URL can't contain control characters. '/phoropter/Test (safe mode)/run-tests' (found at least ' ')
+✓ JCC action: L
+[API] /api/session/test_ca14c9aa/respond: {"intent": "Comfortable"}
+DEBUG STAMP: phase=near_add_left r_add=0.25 l_add=0.0
+DEBUG PROCESS: intent=Comfortable current_phase=near_add_left row.r_add=0.25 self.add_right=0.25
+
+→ Transitioning to Phase R: Near Vision - Binocular ADD
+[PHOROPTER] POST https://rajasthan-royals.preprod.lenskart.com/phoropter/Test (safe mode)/run-tests payload={"test_cases": [{"chart": {"tab": "Chart5", "chart_items": ["chart_5"]}}]}
+[PHOROPTER] Request failed: URL can't contain control characters. '/phoropter/Test (safe mode)/run-tests' (found at least ' ')
+✓ Displaying: Near chart (Chart 5)
+[PHOROPTER] POST https://rajasthan-royals.preprod.lenskart.com/phoropter/Test (safe mode)/run-tests payload={"test_cases": [{"jcc": "BINO"}]}
+[PHOROPTER] Request failed: URL can't contain control characters. '/phoropter/Test (safe mode)/run-tests' (found at least ' ')
+✓ JCC action: BINO
+[API] /api/session/test_ca14c9aa/respond: {"intent": "Comfortable"}
+DEBUG STAMP: phase=near_add_bino r_add=0.25 l_add=0.0
+DEBUG PROCESS: intent=Comfortable current_phase=near_add_bino row.r_add=0.25 self.add_right=0.25
+[API] /api/session/test_ca14c9aa/respond: {"intent": "Confirmed"}
+DEBUG STAMP: phase=near_add_bino r_add=0.25 l_add=0.0
+DEBUG PROCESS: intent=Confirmed current_phase=near_add_bino row.r_add=0.25 self.add_right=0.25
+DEBUG STAMP: phase=near_add_bino r_add=0.25 l_add=0.0
+[API] /api/session/test_ca14c9aa/end: {"store": true, "customer_name": "Mock User", "operator_name": "Automated"}
+DEBUG FINAL ROW: r_add=0.25, l_add=0.0, intent=Confirmed Final
+127.0.0.1 - - [10/Mar/2026 14:27:16] "POST /api/session/test_ca14c9aa/end HTTP/1.1" 200 -
+127.0.0.1 - - [10/Mar/2026 14:28:17] "POST /api/session/start HTTP/1.1" 200 -
+127.0.0.1 - - [10/Mar/2026 14:28:17] "POST /api/session/test_0350cabf/sync-power HTTP/1.1" 200 -
+127.0.0.1 - - [10/Mar/2026 14:28:17] "POST /api/session/test_0350cabf/jump HTTP/1.1" 200 -
+127.0.0.1 - - [10/Mar/2026 14:28:17] "POST /api/session/test_0350cabf/respond HTTP/1.1" 200 -
+127.0.0.1 - - [10/Mar/2026 14:28:17] "POST /api/session/test_0350cabf/respond HTTP/1.1" 200 -
+127.0.0.1 - - [10/Mar/2026 14:28:17] "POST /api/session/test_0350cabf/respond HTTP/1.1" 200 -
+127.0.0.1 - - [10/Mar/2026 14:28:17] "POST /api/session/test_0350cabf/respond HTTP/1.1" 200 -
+127.0.0.1 - - [10/Mar/2026 14:28:17] "POST /api/session/test_0350cabf/respond HTTP/1.1" 200 -
+[LOG] Session test_ca14c9aa: CSV → /Users/shantanuchandra/Downloads/Logging_PhoropterUI/eye_test_engine/logs/sessions/test_ca14c9aa.csv, Meta → /Users/shantanuchandra/Downloads/Logging_PhoropterUI/eye_test_engine/logs/sessions/test_ca14c9aa_metadata.json
+[API] /api/session/start: {"session_id": "test_0350cabf", "phoropter_id": "Test (safe mode)"}
+
+============================================================
+PHASE A: DISTANCE VISION (STEP 2.1)
+============================================================
+[PHOROPTER] POST https://rajasthan-royals.preprod.lenskart.com/phoropter/Test (safe mode)/run-tests payload={"test_cases": [{"chart": {"tab": "Chart1", "chart_items": ["chart_9"]}}]}
+[PHOROPTER] Request failed: URL can't contain control characters. '/phoropter/Test (safe mode)/run-tests' (found at least ' ')
+✓ Displaying: echart_400
+[API] /api/session/test_0350cabf/sync-power: {"right": {"sph": -1.0, "cyl": -2.0, "axis": 90}, "left": {"sph": -2.0, "cyl": -1.0, "axis": 55}}
+DEBUG STAMP: phase=distance_vision r_add=0.0 l_add=0.0
+[API] /api/session/test_0350cabf/jump: {"phase": "near_add_right"}
+
+→ Jumping to Phase P: Near Vision - Right Eye ADD
+[PHOROPTER] POST https://rajasthan-royals.preprod.lenskart.com/phoropter/Test (safe mode)/run-tests payload={"test_cases": [{"chart": {"tab": "Chart5", "chart_items": ["chart_5"]}}]}
+[PHOROPTER] Request failed: URL can't contain control characters. '/phoropter/Test (safe mode)/run-tests' (found at least ' ')
+✓ Displaying: Near chart (Chart 5)
+[PHOROPTER] POST https://rajasthan-royals.preprod.lenskart.com/phoropter/Test (safe mode)/run-tests payload={"test_cases": [{"case_id": 1, "prev_right_eye": {"sph": -1.0, "cyl": -2.0, "axis": 90.0}, "prev_left_eye": {"sph": -2.0, "cyl": -1.0, "axis": 55.0}, "right_eye": {"sph": -1.0, "cyl": -2.0, "axis": 90.0, "add": 0.0}, "left_eye": {"sph": -2.0, "cyl": -1.0, "axis": 55.0, "add": 0.0}}]}
+[PHOROPTER] Request failed: URL can't contain control characters. '/phoropter/Test (safe mode)/run-tests' (found at least ' ')
+✓ Power set with prev state: R(-1.0/-2.0/90.0) L(-2.0/-1.0/55.0)
+  Previous state: R(-1.0/-2.0/90.0) L(-2.0/-1.0/55.0)
+[PHOROPTER] POST https://rajasthan-royals.preprod.lenskart.com/phoropter/Test (safe mode)/run-tests payload={"test_cases": [{"jcc": "R"}]}
+[PHOROPTER] Request failed: URL can't contain control characters. '/phoropter/Test (safe mode)/run-tests' (found at least ' ')
+✓ JCC action: R
+[API] /api/session/test_0350cabf/respond: {"intent": "Blurry"}
+DEBUG STAMP: phase=near_add_right r_add=0.0 l_add=0.0
+DEBUG PROCESS: intent=Blurry current_phase=near_add_right row.r_add=0.0 self.add_right=0.0
+[PHOROPTER] POST https://rajasthan-royals.preprod.lenskart.com/phoropter/Test (safe mode)/run-tests payload={"test_cases": [{"case_id": 1, "prev_right_eye": {"sph": -1.0, "cyl": -2.0, "axis": 90.0, "add": 0.0}, "prev_left_eye": {"sph": -2.0, "cyl": -1.0, "axis": 55.0, "add": 0.0}, "right_eye": {"sph": -1.0, "cyl": -2.0, "axis": 90.0, "add": 0.25}, "left_eye": {"sph": -2.0, "cyl": -1.0, "axis": 55.0, "add": 0.0}}]}
+[PHOROPTER] Request failed: URL can't contain control characters. '/phoropter/Test (safe mode)/run-tests' (found at least ' ')
+✓ Power set with prev state: R(-1.0/-2.0/90.0) L(-2.0/-1.0/55.0)
+  Previous state: R(-1.0/-2.0/90.0) L(-2.0/-1.0/55.0)
+[API] /api/session/test_0350cabf/respond: {"intent": "Comfortable"}
+DEBUG STAMP: phase=near_add_right r_add=0.25 l_add=0.0
+DEBUG PROCESS: intent=Comfortable current_phase=near_add_right row.r_add=0.25 self.add_right=0.25
+
+→ Transitioning to Phase Q: Near Vision - Left Eye ADD
+[PHOROPTER] POST https://rajasthan-royals.preprod.lenskart.com/phoropter/Test (safe mode)/run-tests payload={"test_cases": [{"chart": {"tab": "Chart5", "chart_items": ["chart_5"]}}]}
+[PHOROPTER] Request failed: URL can't contain control characters. '/phoropter/Test (safe mode)/run-tests' (found at least ' ')
+✓ Displaying: Near chart (Chart 5)
+[PHOROPTER] POST https://rajasthan-royals.preprod.lenskart.com/phoropter/Test (safe mode)/run-tests payload={"test_cases": [{"jcc": "L"}]}
+[PHOROPTER] Request failed: URL can't contain control characters. '/phoropter/Test (safe mode)/run-tests' (found at least ' ')
+✓ JCC action: L
+[API] /api/session/test_0350cabf/respond: {"intent": "Comfortable"}
+DEBUG STAMP: phase=near_add_left r_add=0.25 l_add=0.0
+DEBUG PROCESS: intent=Comfortable current_phase=near_add_left row.r_add=0.25 self.add_right=0.25
+
+→ Transitioning to Phase R: Near Vision - Binocular ADD
+[PHOROPTER] POST https://rajasthan-royals.preprod.lenskart.com/phoropter/Test (safe mode)/run-tests payload={"test_cases": [{"chart": {"tab": "Chart5", "chart_items": ["chart_5"]}}]}
+[PHOROPTER] Request failed: URL can't contain control characters. '/phoropter/Test (safe mode)/run-tests' (found at least ' ')
+✓ Displaying: Near chart (Chart 5)
+[PHOROPTER] POST https://rajasthan-royals.preprod.lenskart.com/phoropter/Test (safe mode)/run-tests payload={"test_cases": [{"jcc": "BINO"}]}
+[PHOROPTER] Request failed: URL can't contain control characters. '/phoropter/Test (safe mode)/run-tests' (found at least ' ')
+✓ JCC action: BINO
+[API] /api/session/test_0350cabf/respond: {"intent": "Comfortable"}
+DEBUG STAMP: phase=near_add_bino r_add=0.25 l_add=0.0
+DEBUG PROCESS: intent=Comfortable current_phase=near_add_bino row.r_add=0.25 self.add_right=0.25
+[API] /api/session/test_0350cabf/respond: {"intent": "Confirmed"}
+DEBUG STAMP: phase=near_add_bino r_add=0.25 l_add=0.0
+DEBUG PROCESS: intent=Confirmed current_phase=near_add_bino row.r_add=0.25 self.add_right=0.25
+DEBUG STAMP: phase=near_add_bino r_add=0.25 l_add=0.0
+[API] /api/session/test_0350cabf/end: {"store": true, "customer_name": "Mock User", "operator_name": "Automated"}
+DEBUG FINAL ROW: r_add=0.25, l_add=0.0, intent=Confirmed Final
+127.0.0.1 - - [10/Mar/2026 14:28:17] "POST /api/session/test_0350cabf/end HTTP/1.1" 200 -

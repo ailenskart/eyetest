@@ -1,0 +1,86 @@
+================================================================================
+VS CODE LAUNCH.JSON CONFIGURATION
+================================================================================
+
+Copy and paste this into your .vscode/launch.json file:
+
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Debug Flask API Server",
+            "type": "debugpy",
+            "request": "launch",
+            "module": "eye_test_engine.api_server",
+            "console": "integratedTerminal",
+            "justMyCode": false,
+            "cwd": "${workspaceFolder}",
+            "env": {
+                "FLASK_APP": "eye_test_engine.api_server",
+                "FLASK_ENV": "development",
+                "FLASK_DEBUG": "0"
+            }
+        },
+        {
+            "name": "Attach to Running Flask Server",
+            "type": "debugpy",
+            "request": "attach",
+            "connect": {
+                "host": "localhost",
+                "port": 5678
+            },
+            "pathMappings": [
+                {
+                    "localRoot": "${workspaceFolder}",
+                    "remoteRoot": "."
+                }
+            ],
+            "justMyCode": false
+        },
+        {
+            "name": "Python Debugger: Current File",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${file}",
+            "console": "integratedTerminal",
+            "justMyCode": false
+        }
+    ]
+}
+
+================================================================================
+QUICK START
+================================================================================
+
+METHOD 1: Launch Flask with Debugger (Recommended)
+---------------------------------------------------
+1. Set breakpoints in interactive_session.py
+2. Press F5 in VS Code
+3. Select "Debug Flask API Server"
+4. In separate terminal: cd eye_test_engine/frontend && python -m http.server 8080
+5. Open browser: http://localhost:8080
+6. Use the app - breakpoints will be hit!
+
+METHOD 2: Attach to Running Server
+-----------------------------------
+1. Install: pip install debugpy
+2. Start backend: python -m eye_test_engine.start_debug_server
+3. Set breakpoints in interactive_session.py
+4. Press F5 in VS Code
+5. Select "Attach to Running Flask Server"
+6. In separate terminal: cd eye_test_engine/frontend && python -m http.server 8080
+7. Open browser: http://localhost:8080
+8. Use the app - breakpoints will be hit!
+
+================================================================================
+DEBUG CONTROLS
+================================================================================
+
+F5          - Continue
+F10         - Step Over
+F11         - Step Into
+Shift+F11   - Step Out
+F9          - Toggle Breakpoint
+Cmd+Shift+D - Open Debug panel
+
+================================================================================

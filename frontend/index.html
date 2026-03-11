@@ -1974,6 +1974,20 @@
                         onblur="this.style.borderColor='#e0e0e0'; this.style.background='#fafafa'; this.style.boxShadow='none';"
                         onkeydown="if(event.key==='Enter') saveOptometristName();">
                 </div>
+                <div class="modal-section" style="margin-top: 20px;">
+                    <div class="modal-section-label">Session Persistence</div>
+                    <select id="optometristPersistenceSelect" 
+                        style="width: 100%; padding: 12px 14px; border: 2px solid #e0e0e0; border-radius: 8px; font-size: 15px; font-weight: 500; background: #fafafa; cursor: pointer; transition: all 0.2s;"
+                        onfocus="this.style.borderColor='#667eea'; this.style.boxShadow='0 0 0 3px rgba(102,126,234,0.1)';"
+                        onblur="this.style.borderColor='#e0e0e0'; this.style.boxShadow='none';">
+                        <option value="0">None (Ask every session)</option>
+                        <option value="1">1 Hour</option>
+                        <option value="4">4 Hours</option>
+                        <option value="8">8 Hours</option>
+                        <option value="12" selected>12 Hours</option>
+                        <option value="24">24 Hours</option>
+                    </select>
+                </div>
                 <div class="modal-actions">
                     <button class="btn btn-primary" onclick="saveOptometristName()">Continue</button>
                 </div>

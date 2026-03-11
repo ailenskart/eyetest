@@ -713,44 +713,56 @@ document.addEventListener('DOMContentLoaded', async () => {
     updateArPowerDisplay();
 });
 
-// ── Optometrist Name Cache (12-hour TTL) ─────────────
+// ── Optometrist Name Cache (Dynamic TTL) ─────────────
 
 const OPTOMETRIST_CACHE_KEY = 'optometristName';
 const OPTOMETRIST_TS_KEY = 'optometristNameTimestamp';
-const OPTOMETRIST_TTL_MS = 12 * 60 * 60 * 1000;
+const OPTOMETRIST_TTL_KEY = 'optometristTTL'; // Store chosen TTL in hours
 
 function checkOptometristName() {
     const cached = localStorage.getItem(OPTOMETRIST_CACHE_KEY);
     const ts = parseInt(localStorage.getItem(OPTOMETRIST_TS_KEY) || '0', 10);
-    const expired = (Date.now() - ts) > OPTOMETRIST_TTL_MS;
+    const ttlHours = parseInt(localStorage.getItem(OPTOMETRIST_TTL_KEY) || '0', 10);
+    
+    // If TTL is 0, it means "Ask every time" - but we still need to allow it for the current session
+    // Actually, the user says "ask... everytime", so if ttl is 0, we only keep it for this instance of the script?
+    // Let's use the persistence logic: if ttl is 0, it's always expired for the next 'check'.
+    
+    const ttlMs = ttlHours * 60 * 60 * 1000;
+    const expired = ttlHours === 0 || (Date.now() - ts) > ttlMs;
 
     if (cached && !expired) {
         operatorName = cached;
-        return;
+        return true;
     }
 
-    localStorage.removeItem(OPTOMETRIST_CACHE_KEY);
-    localStorage.removeItem(OPTOMETRIST_TS_KEY);
-
+    // Default: clear and show modal
+    operatorName = '';
     const modal = document.getElementById('optometristModal');
     if (modal) {
         modal.classList.add('active');
         const input = document.getElementById('optometristNameInput');
         if (input) setTimeout(() => input.focus(), 200);
     }
+    return false;
 }
 
 function saveOptometristName() {
     const input = document.getElementById('optometristNameInput');
     const name = (input ? input.value.trim() : '');
+    const persistenceSelect = document.getElementById('optometristPersistenceSelect');
+    const ttlHours = persistenceSelect ? parseInt(persistenceSelect.value, 10) : 0;
+
     if (!name) {
         input.style.borderColor = '#f44336';
         input.placeholder = 'Name is required';
         return;
     }
+    
     operatorName = name;
     localStorage.setItem(OPTOMETRIST_CACHE_KEY, name);
     localStorage.setItem(OPTOMETRIST_TS_KEY, String(Date.now()));
+    localStorage.setItem(OPTOMETRIST_TTL_KEY, String(ttlHours));
 
     const modal = document.getElementById('optometristModal');
     if (modal) modal.classList.remove('active');
@@ -2019,62 +2031,77 @@ async function startTest() {
     if (btn) btn.disabled = true;
 
     try {
-        showLoading(true);
+        // Ensure optometrist is identified
+        if (!checkOptometristName()) {
+            if (btn) btn.disabled = false;
+            return;
+        }
+
         const customerDetails = validateCustomerDetails();
         if (!customerDetails) {
             if (btn) btn.disabled = false;
-            showLoading(false);
             return;
         }
+
+        // 1. Instantly switch to test screen and show modals
         customerName = customerDetails.name;
         customerAge = customerDetails.age;
         customerGender = customerDetails.gender;
 
-        // Generate session ID
-        const sessionId = 'session_' + Date.now();
-        sessionState.sessionId = sessionId;
-        sessionState.currentChart = null;  // Reset chart tracking for new session
-
-        // Reset phoropter
-        await resetPhoropter();
-
-        // Start session with backend
-        const response = await fetch(`${CONFIG.backendUrl}/api/session/start`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ session_id: sessionId, phoropter_id: CONFIG.phoropterId })
-        });
-
-        if (!response.ok) {
-            throw new Error('Failed to start session');
-        }
-
-        const data = await response.json();
-
-        // Update UI
         document.getElementById('welcomeScreen').style.display = 'none';
         document.getElementById('testScreen').style.display = 'block';
         updateCustomerStatusPanel();
+
+        // Start modal flow instantly (non-blocking for hardware/backend tasks)
         runStartupPowerModalFlow();
 
+        // 2. Perform hardware and backend initialization in background/parallel
+        // We still show loading for the background tasks, but the modals are already on top.
+        showLoading(true);
+
+        // Generate session ID
+        const sessionId = 'session_' + Date.now();
+        sessionState.sessionId = sessionId;
+        sessionState.currentChart = null;
+
+        // Perform bridge/phoropter reset and session start concurrently
+        const [resetRes, sessionRes] = await Promise.allSettled([
+            resetPhoropter(),
+            fetch(`${CONFIG.backendUrl}/api/session/start`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ session_id: sessionId, phoropter_id: CONFIG.phoropterId })
+            })
+        ]);
+
+        if (sessionRes.status === 'rejected' || !sessionRes.value.ok) {
+            throw new Error('Failed to start session on backend');
+        }
+
+        const data = await sessionRes.value.json();
+
+        // 3. Finalize UI with backend data
         updateSessionInfo(data);
         displayQuestion(data);
 
-        // Set phoropter for first phase
+        // Set phoropter for first phase (this might take a few seconds)
         await setPhoropter(data);
 
         addToHistory('Test started', 'success');
         updateStatusIndicator(true);
         _saveSessionToStorage();
 
-        // Check if auto-flip is needed (JCC Flip1 → Flip2)
         if (data.auto_flip) {
             await handleAutoFlip(data.flip_wait_seconds || 2);
         }
 
     } catch (error) {
         console.error('Error starting test:', error);
-        alert(`Failed to start test. Make sure the backend server is running at ${CONFIG.backendUrl}.\n\nRun: cd eye_test_engine && python api_server.py`);
+        alert(`Failed to start test. Make sure the backend server is running at ${CONFIG.backendUrl}.`);
+        
+        // Bail back to welcome screen on hard failure
+        document.getElementById('welcomeScreen').style.display = 'block';
+        document.getElementById('testScreen').style.display = 'none';
         if (btn) btn.disabled = false;
     } finally {
         showLoading(false);

@@ -1,0 +1,22 @@
+Starting Eye Test API Server...
+Available endpoints:
+  POST /api/session/start
+  POST /api/session/<id>/respond
+  POST /api/session/<id>/jump
+  POST /api/session/<id>/switch-chart
+  POST /api/session/<id>/sync-power
+  GET  /api/session/<id>/status
+  POST /api/session/<id>/end
+ * Serving Flask app 'api_server'
+ * Debug mode: on
+[31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+ * Running on all addresses (0.0.0.0)
+ * Running on http://127.0.0.1:5050
+ * Running on http://192.168.68.113:5050
+[33mPress CTRL+C to quit[0m
+ * Restarting with stat
+ * Debugger is active!
+ * Debugger PIN: 589-740-742
+127.0.0.1 - - [21/Feb/2026 03:55:11] "[33mGET /api/session/test/status HTTP/1.1[0m" 404 -
+/opt/homebrew/Cellar/python@3.13/3.13.9_1/Frameworks/Python.framework/Versions/3.13/lib/python3.13/multiprocessing/resource_tracker.py:324: UserWarning: resource_tracker: There appear to be 1 leaked semaphore objects to clean up at shutdown: {'/mp-ggsb6hnb'}
+  warnings.warn(

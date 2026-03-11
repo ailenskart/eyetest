@@ -1,0 +1,467 @@
+Starting Eye Test API Server...
+Available endpoints:
+  GET  /api/devices
+  GET  /api/devices/<id>
+  POST /api/devices/<id>/acquire
+  POST /api/devices/<id>/heartbeat
+  POST /api/devices/<id>/release
+  GET  /api/brains
+  GET  /api/events
+  POST /api/phoropter/<id>/sync-state
+  POST /api/session/start
+  POST /api/session/<id>/respond
+  POST /api/session/<id>/jump
+  POST /api/session/<id>/switch-chart
+  POST /api/session/<id>/sync-power
+  GET  /api/session/<id>/status
+  POST /api/session/<id>/end
+  POST /api/session/<id>/discard
+ * Serving Flask app 'api_server'
+ * Debug mode: off
+[31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+ * Running on all addresses (0.0.0.0)
+ * Running on http://127.0.0.1:5050
+ * Running on http://192.168.30.174:5050
+[33mPress CTRL+C to quit[0m
+127.0.0.1 - - [10/Mar/2026 13:45:40] "GET /api/devices HTTP/1.1" 200 -
+127.0.0.1 - - [10/Mar/2026 13:48:28] "[33mGET /api/health HTTP/1.1[0m" 404 -
+127.0.0.1 - - [10/Mar/2026 13:48:28] "[33mGET /favicon.ico HTTP/1.1[0m" 404 -
+127.0.0.1 - - [10/Mar/2026 13:49:16] "[33mGET /api/health HTTP/1.1[0m" 404 -
+127.0.0.1 - - [10/Mar/2026 13:50:00] "OPTIONS /api/session/start HTTP/1.1" 200 -
+127.0.0.1 - - [10/Mar/2026 13:50:00] "POST /api/session/start HTTP/1.1" 200 -
+127.0.0.1 - - [10/Mar/2026 13:50:25] "OPTIONS /api/session/session_1773130800323/respond HTTP/1.1" 200 -
+127.0.0.1 - - [10/Mar/2026 13:50:26] "POST /api/session/session_1773130800323/respond HTTP/1.1" 200 -
+127.0.0.1 - - [10/Mar/2026 13:51:05] "OPTIONS /api/session/session_1773130800323/respond HTTP/1.1" 200 -
+127.0.0.1 - - [10/Mar/2026 13:51:06] "POST /api/session/session_1773130800323/respond HTTP/1.1" 200 -
+127.0.0.1 - - [10/Mar/2026 14:02:07] "POST /api/session/start HTTP/1.1" 200 -
+127.0.0.1 - - [10/Mar/2026 14:02:07] "POST /api/session/mock_prescription_test/sync-power HTTP/1.1" 200 -
+127.0.0.1 - - [10/Mar/2026 14:02:07] "POST /api/session/mock_prescription_test/jump HTTP/1.1" 200 -
+127.0.0.1 - - [10/Mar/2026 14:02:07] "POST /api/session/mock_prescription_test/respond HTTP/1.1" 200 -
+127.0.0.1 - - [10/Mar/2026 14:02:07] "POST /api/session/mock_prescription_test/respond HTTP/1.1" 200 -
+127.0.0.1 - - [10/Mar/2026 14:02:07] "POST /api/session/mock_prescription_test/respond HTTP/1.1" 200 -
+127.0.0.1 - - [10/Mar/2026 14:02:07] "POST /api/session/mock_prescription_test/respond HTTP/1.1" 200 -
+127.0.0.1 - - [10/Mar/2026 14:02:07] "POST /api/session/mock_prescription_test/end HTTP/1.1" 200 -
+127.0.0.1 - - [10/Mar/2026 14:04:26] "GET /api/config HTTP/1.1" 200 -
+127.0.0.1 - - [10/Mar/2026 14:04:35] "POST /api/session/start HTTP/1.1" 200 -
+127.0.0.1 - - [10/Mar/2026 14:04:35] "POST /api/session/mock_prescription_test/sync-power HTTP/1.1" 200 -
+[API] /api/session/start: {"session_id": "session_1773130800323", "phoropter_id": "Test"}
+
+============================================================
+PHASE A: DISTANCE VISION (STEP 2.1)
+============================================================
+[PHOROPTER] POST https://rajasthan-royals.preprod.lenskart.com/phoropter/Test/run-tests payload={"test_cases": [{"chart": {"tab": "Chart1", "chart_items": ["chart_9"]}}]}
+[PHOROPTER] HTTP Error 404: {"detail":"Device 'Test' not found. Available: ['lkst1782-1']"}
+✓ Displaying: echart_400
+[API] /api/session/session_1773130800323/respond: {"intent": "Able to read"}
+
+→ Transitioning to Phase B: Right Eye Refraction (Step 6.1)
+[PHOROPTER] POST https://rajasthan-royals.preprod.lenskart.com/phoropter/Test/run-tests payload={"test_cases": [{"chart": {"tab": "Chart1", "chart_items": ["chart_10"]}}]}
+[PHOROPTER] HTTP Error 404: {"detail":"Device 'Test' not found. Available: ['lkst1782-1']"}
+✓ Displaying: snellen_chart_200_150
+[PHOROPTER] POST https://rajasthan-royals.preprod.lenskart.com/phoropter/Test/run-tests payload={"test_cases": [{}]}
+[PHOROPTER] HTTP Error 404: {"detail":"Device 'Test' not found. Available: ['lkst1782-1']"}
+✓ Power set: R(None/None/None) L(None/None/None) Occ: Left_Occluded
+[PHOROPTER] POST https://rajasthan-royals.preprod.lenskart.com/phoropter/Test/run-tests payload={"test_cases": [{"jcc": "R"}]}
+[PHOROPTER] HTTP Error 404: {"detail":"Device 'Test' not found. Available: ['lkst1782-1']"}
+✓ JCC action: R
+✓ JCC eye mode set: R
+[API] /api/session/session_1773130800323/respond: {"intent": "Blurry"}
+[PHOROPTER] POST https://rajasthan-royals.preprod.lenskart.com/phoropter/Test/run-tests payload={"test_cases": [{"case_id": 1, "prev_right_eye": {"sph": 0.0, "cyl": 0.0, "axis": 180.0}, "prev_left_eye": {"sph": 0.0, "cyl": 0.0, "axis": 180.0}, "right_eye": {"sph": -0.25, "cyl": 0.0, "axis": 180.0}, "left_eye": {"sph": 0.0, "cyl": 0.0, "axis": 180.0}, "prev_aux_lens": "AuxLensL", "aux_lens": "AuxLensL"}]}
+[PHOROPTER] HTTP Error 404: {"detail":"Device 'Test' not found. Available: ['lkst1782-1']"}
+✓ Power set with prev state: R(-0.25/0.0/180.0) L(0.0/0.0/180.0)
+  Previous state: R(0.0/0.0/180.0) L(0.0/0.0/180.0)
+[API] /api/session/start: {"session_id": "mock_prescription_test", "phoropter_id": "Test (safe mode)"}
+
+============================================================
+PHASE A: DISTANCE VISION (STEP 2.1)
+============================================================
+[PHOROPTER] POST https://rajasthan-royals.preprod.lenskart.com/phoropter/Test (safe mode)/run-tests payload={"test_cases": [{"chart": {"tab": "Chart1", "chart_items": ["chart_9"]}}]}
+[PHOROPTER] Request failed: URL can't contain control characters. '/phoropter/Test (safe mode)/run-tests' (found at least ' ')
+✓ Displaying: echart_400
+[API] /api/session/mock_prescription_test/sync-power: {"right": {"sph": -1.0, "cyl": -2.0, "axis": 90}, "left": {"sph": -2.0, "cyl": -1.0, "axis": 55}}
+[API] /api/session/mock_prescription_test/jump: {"phase": "near_add_right"}
+
+→ Jumping to Phase P: Near Vision - Right Eye ADD
+[PHOROPTER] POST https://rajasthan-royals.preprod.lenskart.com/phoropter/Test (safe mode)/run-tests payload={"test_cases": [{"chart": {"tab": "Chart5", "chart_items": ["chart_5"]}}]}
+[PHOROPTER] Request failed: URL can't contain control characters. '/phoropter/Test (safe mode)/run-tests' (found at least ' ')
+✓ Displaying: Near chart (Chart 5)
+[PHOROPTER] POST https://rajasthan-royals.preprod.lenskart.com/phoropter/Test (safe mode)/run-tests payload={"test_cases": [{"case_id": 1, "prev_right_eye": {"sph": -1.0, "cyl": -2.0, "axis": 90.0}, "prev_left_eye": {"sph": -2.0, "cyl": -1.0, "axis": 55.0}, "right_eye": {"sph": -1.0, "cyl": -2.0, "axis": 90.0, "add": 0.0}, "left_eye": {"sph": -2.0, "cyl": -1.0, "axis": 55.0, "add": 0.0}}]}
+[PHOROPTER] Request failed: URL can't contain control characters. '/phoropter/Test (safe mode)/run-tests' (found at least ' ')
+✓ Power set with prev state: R(-1.0/-2.0/90.0) L(-2.0/-1.0/55.0)
+  Previous state: R(-1.0/-2.0/90.0) L(-2.0/-1.0/55.0)
+[PHOROPTER] POST https://rajasthan-royals.preprod.lenskart.com/phoropter/Test (safe mode)/run-tests payload={"test_cases": [{"jcc": "R"}]}
+[PHOROPTER] Request failed: URL can't contain control characters. '/phoropter/Test (safe mode)/run-tests' (found at least ' ')
+✓ JCC action: R
+[API] /api/session/mock_prescription_test/respond: {"intent": "Blurry"}
+[PHOROPTER] POST https://rajasthan-royals.preprod.lenskart.com/phoropter/Test (safe mode)/run-tests payload={"test_cases": [{"case_id": 1, "prev_right_eye": {"sph": -1.0, "cyl": -2.0, "axis": 90.0, "add": 0.0}, "prev_left_eye": {"sph": -2.0, "cyl": -1.0, "axis": 55.0, "add": 0.0}, "right_eye": {"sph": -1.0, "cyl": -2.0, "axis": 90.0, "add": 0.25}, "left_eye": {"sph": -2.0, "cyl": -1.0, "axis": 55.0, "add": 0.0}}]}
+[PHOROPTER] Request failed: URL can't contain control characters. '/phoropter/Test (safe mode)/run-tests' (found at least ' ')
+✓ Power set with prev state: R(-1.0/-2.0/90.0) L(-2.0/-1.0/55.0)
+  Previous state: R(-1.0/-2.0/90.0) L(-2.0/-1.0/55.0)
+[API] /api/session/mock_prescription_test/respond: {"intent": "Comfortable"}
+
+→ Transitioning to Phase Q: Near Vision - Left Eye ADD
+[PHOROPTER] POST https://rajasthan-royals.preprod.lenskart.com/phoropter/Test (safe mode)/run-tests payload={"test_cases": [{"chart": {"tab": "Chart5", "chart_items": ["chart_5"]}}]}
+[PHOROPTER] Request failed: URL can't contain control characters. '/phoropter/Test (safe mode)/run-tests' (found at least ' ')
+✓ Displaying: Near chart (Chart 5)
+[PHOROPTER] POST https://rajasthan-royals.preprod.lenskart.com/phoropter/Test (safe mode)/run-tests payload={"test_cases": [{"jcc": "L"}]}
+[PHOROPTER] Request failed: URL can't contain control characters. '/phoropter/Test (safe mode)/run-tests' (found at least ' ')
+✓ JCC action: L
+[API] /api/session/mock_prescription_test/respond: {"intent": "Comfortable"}
+
+→ Transitioning to Phase R: Near Vision - Binocular ADD
+[PHOROPTER] POST https://rajasthan-royals.preprod.lenskart.com/phoropter/Test (safe mode)/run-tests payload={"test_cases": [{"chart": {"tab": "Chart5", "chart_items": ["chart_5"]}}]}
+[PHOROPTER] Request failed: URL can't contain control characters. '/phoropter/Test (safe mode)/run-tests' (found at least ' ')
+✓ Displaying: Near chart (Chart 5)
+[PHOROPTER] POST https://rajasthan-royals.preprod.lenskart.com/phoropter/Test (safe mode)/run-tests payload={"test_cases": [{"jcc": "BINO"}]}
+[PHOROPTER] Request failed: URL can't contain control characters. '/phoropter/Test (safe mode)/run-tests' (found at least ' ')
+✓ JCC action: BINO
+[API] /api/session/mock_prescription_test/respond: {"intent": "Comfortable"}
+[API] /api/session/mock_prescription_test/end: {"store": true, "customer_name": "Mock Eye Power User", "customer_age": "32", "customer_gender": "Male", "operator_name": "Automated Script"}
+[LOG] Session mock_prescription_test: CSV → /Users/shantanuchandra/Downloads/Logging_PhoropterUI/eye_test_engine/logs/sessions/mock_prescription_test.csv, Meta → /Users/shantanuchandra/Downloads/Logging_PhoropterUI/eye_test_engine/logs/sessions/mock_prescription_test_metadata.json
+[CONFIG] Serving config: backend_url='', phoropter='https://rajasthan-royals.preprod.lenskart.com'
+[API] /api/session/start: {"session_id": "mock_prescription_test", "phoropter_id": "Test (safe mode)"}
+
+============================================================
+PHASE A: DISTANCE VISION (STEP 2.1)
+============================================================
+[PHOROPTER] POST https://rajasthan-royals.preprod.lenskart.com/phoropter/Test (safe mode)/run-tests payload={"test_cases": [{"chart": {"tab": "Chart1", "chart_items": ["chart_9"]}}]}
+[PHOROPTER] Request failed: URL can't contain control characters. '/phoropter/Test (safe mode)/run-tests' (found at least ' ')
+✓ Displaying: echart_400
+[API] /api/session/mock_prescription_test/sync-power: {"right": {"sph": -1.0, "cyl": -2.0, "axis": 90}, "left": {"sph": -2.0, "cyl": -1.0, "axis": 55}}
+[API] /api/session/mock_prescription_test/jump: {"phase": "near_add_right"}
+
+→ Jumping to Phase P: Near Vision - Right Eye ADD
+[PHOROPTER] POST https://rajasthan-royals.preprod.lenskart.com/phoropter/Test (safe mode)/run-tests payload={"test_cases": [{"chart": {"tab": "Chart5", "chart_items": ["chart_5"]}}]}127.0.0.1 - - [10/Mar/2026 14:04:35] "POST /api/session/mock_prescription_test/jump HTTP/1.1" 200 -
+127.0.0.1 - - [10/Mar/2026 14:04:35] "POST /api/session/mock_prescription_test/respond HTTP/1.1" 200 -
+127.0.0.1 - - [10/Mar/2026 14:04:35] "POST /api/session/mock_prescription_test/respond HTTP/1.1" 200 -
+127.0.0.1 - - [10/Mar/2026 14:04:35] "POST /api/session/mock_prescription_test/respond HTTP/1.1" 200 -
+127.0.0.1 - - [10/Mar/2026 14:04:35] "POST /api/session/mock_prescription_test/respond HTTP/1.1" 200 -
+127.0.0.1 - - [10/Mar/2026 14:04:35] "POST /api/session/mock_prescription_test/end HTTP/1.1" 200 -
+127.0.0.1 - - [10/Mar/2026 14:05:41] "OPTIONS /api/session/session_1773130800323/switch-chart HTTP/1.1" 200 -
+127.0.0.1 - - [10/Mar/2026 14:05:42] "POST /api/session/session_1773130800323/switch-chart HTTP/1.1" 200 -
+127.0.0.1 - - [10/Mar/2026 14:05:42] "OPTIONS /api/session/session_1773130800323/respond HTTP/1.1" 200 -
+127.0.0.1 - - [10/Mar/2026 14:05:43] "POST /api/session/session_1773130800323/respond HTTP/1.1" 200 -
+127.0.0.1 - - [10/Mar/2026 14:05:44] "POST /api/session/session_1773130800323/respond HTTP/1.1" 200 -
+127.0.0.1 - - [10/Mar/2026 14:05:47] "POST /api/session/session_1773130800323/respond HTTP/1.1" 200 -
+127.0.0.1 - - [10/Mar/2026 14:05:52] "OPTIONS /api/session/session_1773130800323/respond HTTP/1.1" 200 -
+127.0.0.1 - - [10/Mar/2026 14:05:53] "POST /api/session/session_1773130800323/respond HTTP/1.1" 200 -
+127.0.0.1 - - [10/Mar/2026 14:05:56] "POST /api/session/session_1773130800323/respond HTTP/1.1" 200 -
+127.0.0.1 - - [10/Mar/2026 14:05:56] "POST /api/session/session_1773130800323/respond HTTP/1.1" 200 -
+127.0.0.1 - - [10/Mar/2026 14:05:58] "OPTIONS /api/session/session_1773130800323/respond HTTP/1.1" 200 -
+127.0.0.1 - - [10/Mar/2026 14:05:59] "POST /api/session/session_1773130800323/respond HTTP/1.1" 200 -
+
+[PHOROPTER] Request failed: URL can't contain control characters. '/phoropter/Test (safe mode)/run-tests' (found at least ' ')
+✓ Displaying: Near chart (Chart 5)
+[PHOROPTER] POST https://rajasthan-royals.preprod.lenskart.com/phoropter/Test (safe mode)/run-tests payload={"test_cases": [{"case_id": 1, "prev_right_eye": {"sph": -1.0, "cyl": -2.0, "axis": 90.0}, "prev_left_eye": {"sph": -2.0, "cyl": -1.0, "axis": 55.0}, "right_eye": {"sph": -1.0, "cyl": -2.0, "axis": 90.0, "add": 0.0}, "left_eye": {"sph": -2.0, "cyl": -1.0, "axis": 55.0, "add": 0.0}}]}
+[PHOROPTER] Request failed: URL can't contain control characters. '/phoropter/Test (safe mode)/run-tests' (found at least ' ')
+✓ Power set with prev state: R(-1.0/-2.0/90.0) L(-2.0/-1.0/55.0)
+  Previous state: R(-1.0/-2.0/90.0) L(-2.0/-1.0/55.0)
+[PHOROPTER] POST https://rajasthan-royals.preprod.lenskart.com/phoropter/Test (safe mode)/run-tests payload={"test_cases": [{"jcc": "R"}]}
+[PHOROPTER] Request failed: URL can't contain control characters. '/phoropter/Test (safe mode)/run-tests' (found at least ' ')
+✓ JCC action: R
+[API] /api/session/mock_prescription_test/respond: {"intent": "Blurry"}
+[PHOROPTER] POST https://rajasthan-royals.preprod.lenskart.com/phoropter/Test (safe mode)/run-tests payload={"test_cases": [{"case_id": 1, "prev_right_eye": {"sph": -1.0, "cyl": -2.0, "axis": 90.0, "add": 0.0}, "prev_left_eye": {"sph": -2.0, "cyl": -1.0, "axis": 55.0, "add": 0.0}, "right_eye": {"sph": -1.0, "cyl": -2.0, "axis": 90.0, "add": 0.25}, "left_eye": {"sph": -2.0, "cyl": -1.0, "axis": 55.0, "add": 0.0}}]}
+[PHOROPTER] Request failed: URL can't contain control characters. '/phoropter/Test (safe mode)/run-tests' (found at least ' ')
+✓ Power set with prev state: R(-1.0/-2.0/90.0) L(-2.0/-1.0/55.0)
+  Previous state: R(-1.0/-2.0/90.0) L(-2.0/-1.0/55.0)
+[API] /api/session/mock_prescription_test/respond: {"intent": "Comfortable"}
+
+→ Transitioning to Phase Q: Near Vision - Left Eye ADD
+[PHOROPTER] POST https://rajasthan-royals.preprod.lenskart.com/phoropter/Test (safe mode)/run-tests payload={"test_cases": [{"chart": {"tab": "Chart5", "chart_items": ["chart_5"]}}]}
+[PHOROPTER] Request failed: URL can't contain control characters. '/phoropter/Test (safe mode)/run-tests' (found at least ' ')
+✓ Displaying: Near chart (Chart 5)
+[PHOROPTER] POST https://rajasthan-royals.preprod.lenskart.com/phoropter/Test (safe mode)/run-tests payload={"test_cases": [{"jcc": "L"}]}
+[PHOROPTER] Request failed: URL can't contain control characters. '/phoropter/Test (safe mode)/run-tests' (found at least ' ')
+✓ JCC action: L
+[API] /api/session/mock_prescription_test/respond: {"intent": "Comfortable"}
+
+→ Transitioning to Phase R: Near Vision - Binocular ADD
+[PHOROPTER] POST https://rajasthan-royals.preprod.lenskart.com/phoropter/Test (safe mode)/run-tests payload={"test_cases": [{"chart": {"tab": "Chart5", "chart_items": ["chart_5"]}}]}
+[PHOROPTER] Request failed: URL can't contain control characters. '/phoropter/Test (safe mode)/run-tests' (found at least ' ')
+✓ Displaying: Near chart (Chart 5)
+[PHOROPTER] POST https://rajasthan-royals.preprod.lenskart.com/phoropter/Test (safe mode)/run-tests payload={"test_cases": [{"jcc": "BINO"}]}
+[PHOROPTER] Request failed: URL can't contain control characters. '/phoropter/Test (safe mode)/run-tests' (found at least ' ')
+✓ JCC action: BINO
+[API] /api/session/mock_prescription_test/respond: {"intent": "Comfortable"}
+[API] /api/session/mock_prescription_test/end: {"store": true, "customer_name": "Mock Eye Power User", "customer_age": "32", "customer_gender": "Male", "operator_name": "Automated Script"}
+[LOG] Session mock_prescription_test: CSV → /Users/shantanuchandra/Downloads/Logging_PhoropterUI/eye_test_engine/logs/sessions/mock_prescription_test.csv, Meta → /Users/shantanuchandra/Downloads/Logging_PhoropterUI/eye_test_engine/logs/sessions/mock_prescription_test_metadata.json
+[API] /api/session/session_1773130800323/switch-chart: {"chart_index": 5}
+[PHOROPTER] POST https://rajasthan-royals.preprod.lenskart.com/phoropter/Test/run-tests payload={"test_cases": [{"chart": {"tab": "Chart1", "chart_items": ["chart_15"]}}]}
+[PHOROPTER] HTTP Error 404: {"detail":"Device 'Test' not found. Available: ['lkst1782-1']"}
+✓ Displaying: snellen_chart_20_20_20
+✓ Switched to chart 5: snellen_chart_20_20_20
+[API] /api/session/session_1773130800323/respond: {"intent": "Blurry"}
+[PHOROPTER] POST https://rajasthan-royals.preprod.lenskart.com/phoropter/Test/run-tests payload={"test_cases": [{"case_id": 1, "prev_right_eye": {"sph": -0.25, "cyl": 0.0, "axis": 180.0}, "prev_left_eye": {"sph": 0.0, "cyl": 0.0, "axis": 180.0}, "right_eye": {"sph": -0.5, "cyl": 0.0, "axis": 180.0}, "left_eye": {"sph": 0.0, "cyl": 0.0, "axis": 180.0}, "prev_aux_lens": "AuxLensL", "aux_lens": "AuxLensL"}]}
+[PHOROPTER] HTTP Error 404: {"detail":"Device 'Test' not found. Available: ['lkst1782-1']"}
+✓ Power set with prev state: R(-0.5/0.0/180.0) L(0.0/0.0/180.0)
+  Previous state: R(-0.25/0.0/180.0) L(0.0/0.0/180.0)
+[API] /api/session/session_1773130800323/respond: {"intent": "Able to read"}
+
+→ Transitioning to Phase E: JCC Axis Right (Step 6.2)
+[API] /api/session/session_1773130800323/respond: {"intent": "AUTO_FLIP"}
+[PHOROPTER] POST https://rajasthan-royals.preprod.lenskart.com/phoropter/Test/run-tests payload={"test_cases": [{"jcc": "handle"}]}
+[PHOROPTER] HTTP Error 404: {"detail":"Device 'Test' not found. Available: ['lkst1782-1']"}
+✓ JCC action: handle
+[API] /api/session/session_1773130800323/respond: {"intent": "Flip 2 was MUCH better (RAM Axis - decrease axis by 10°)"}
+[PHOROPTER] POST https://rajasthan-royals.preprod.lenskart.com/phoropter/Test/run-tests payload={"test_cases": [{"jcc": "decrease"}]}
+[PHOROPTER] HTTP Error 404: {"detail":"Device 'Test' not found. Available: ['lkst1782-1']"}
+✓ JCC action: decrease
+[PHOROPTER] POST https://rajasthan-royals.preprod.lenskart.com/phoropter/Test/run-tests payload={"test_cases": [{"jcc": "decrease"}]}
+[PHOROPTER] HTTP Error 404: {"detail":"Device 'Test' not found. Available: ['lkst1782-1']"}
+✓ JCC action: decrease
+[PHOROPTER] POST https://rajasthan-royals.preprod.lenskart.com/phoropter/Test/run-tests payload={"test_cases": [{"jcc": "handle"}]}
+[PHOROPTER] HTTP Error 404: {"detail":"Device 'Test' not found. Available: ['lkst1782-1']"}
+✓ JCC action: handle
+[API] /api/session/session_1773130800323/respond: {"intent": "AUTO_FLIP"}
+[PHOROPTER] POST https://rajasthan-royals.preprod.lenskart.com/phoropter/Test/run-tests payload={"test_cases": [{"jcc": "handle"}]}
+[PHOROPTER] HTTP Error 404: {"detail":"Device 'Test' not found. Available: ['lkst1782-1']"}
+✓ JCC action: handle
+[API] /api/session/session_1773130800323/respond: {"intent": "Both Same (no change needed)"}
+
+→ Transitioning to Phase F: JCC Power Right (Step 6.2)
+[PHOROPTER] POST https://rajasthan-royals.preprod.lenskart.com/phoropter/Test/run-tests payload={"test_cases": [{"jcc": "power_axis_switch"}]}
+[PHOROPTER] HTTP Error 404: {"detail":"Device 'Test' not found. Available: ['lkst1782-1']"}
+✓ JCC action: power_axis_switch
+[API] /api/session/session_1773130800323/respond: {"intent": "AUTO_FLIP"}
+[PHOROPTER] POST https://rajasthan-royals.preprod.lenskart.com/phoropter/Test/run-tests payload={"test_cases": [{"jcc": "handle"}]}
+[PHOROPTER] HTTP Error 404: {"detail":"Device 'Test' not found. Available: ['lkst1782-1']"}
+✓ JCC action: handle
+[API] /api/session/session_1773130800323/respond: {"intent": "Flip 2 was MUCH better (RAM Power - decrease cylinder by 0.50D)"}
+[PHOROPTER] POST https://rajasthan-royals.preprod.lenskart.com/phoropter/Test/run-tests payload={"test_cases": [{"jcc": "decrease"}]}
+[PHOROPTER] HTTP Error 404: {"detail":"Device 'Test' not found. Available: ['lkst1782-1']"}
+✓ JCC action: decrease
+[PHOROPTER] POST https://rajasthan-royals.preprod.lenskart.com/phoropter/Test/run-tests payload={"test_cases": [{"jcc": "decrease"}]}
+[PHOROPTER] HTTP Error 404: {"detail":"Device 'Test' not found. Available: ['lkst1782-1']"}
+✓ JCC action: decrease
+✓ Spherical equivalent compensation: SPH increased by +0.25D (now -0.25D)
+[PHOROPTER] POST https://rajasthan-royals.preprod.lenskart.com/phoropter/Test/run-tests payload={"test_cases": [{"jcc": "handle"}]}127.0.0.1 - - [10/Mar/2026 14:06:03] "POST /api/session/session_1773130800323/respond HTTP/1.1" 200 -
+127.0.0.1 - - [10/Mar/2026 14:06:05] "OPTIONS /api/session/session_1773130800323/respond HTTP/1.1" 200 -
+127.0.0.1 - - [10/Mar/2026 14:06:05] "POST /api/session/session_1773130800323/respond HTTP/1.1" 200 -
+127.0.0.1 - - [10/Mar/2026 14:06:07] "POST /api/session/session_1773130800323/respond HTTP/1.1" 200 -
+127.0.0.1 - - [10/Mar/2026 14:06:10] "POST /api/session/session_1773130800323/respond HTTP/1.1" 200 -
+127.0.0.1 - - [10/Mar/2026 14:06:11] "OPTIONS /api/session/session_1773130800323/respond HTTP/1.1" 200 -
+127.0.0.1 - - [10/Mar/2026 14:06:11] "POST /api/session/session_1773130800323/respond HTTP/1.1" 200 -
+127.0.0.1 - - [10/Mar/2026 14:06:13] "POST /api/session/session_1773130800323/respond HTTP/1.1" 200 -
+127.0.0.1 - - [10/Mar/2026 14:06:15] "POST /api/session/session_1773130800323/respond HTTP/1.1" 200 -
+127.0.0.1 - - [10/Mar/2026 14:06:16] "OPTIONS /api/session/session_1773130800323/respond HTTP/1.1" 200 -
+127.0.0.1 - - [10/Mar/2026 14:06:16] "POST /api/session/session_1773130800323/respond HTTP/1.1" 200 -
+127.0.0.1 - - [10/Mar/2026 14:06:17] "POST /api/session/session_1773130800323/respond HTTP/1.1" 200 -
+127.0.0.1 - - [10/Mar/2026 14:06:18] "POST /api/session/session_1773130800323/respond HTTP/1.1" 200 -
+127.0.0.1 - - [10/Mar/2026 14:06:19] "POST /api/session/session_1773130800323/respond HTTP/1.1" 200 -
+127.0.0.1 - - [10/Mar/2026 14:06:19] "POST /api/session/session_1773130800323/respond HTTP/1.1" 200 -
+127.0.0.1 - - [10/Mar/2026 14:06:20] "POST /api/session/session_1773130800323/respond HTTP/1.1" 200 -
+127.0.0.1 - - [10/Mar/2026 14:06:22] "OPTIONS /api/session/session_1773130800323/respond HTTP/1.1" 200 -
+127.0.0.1 - - [10/Mar/2026 14:06:22] "POST /api/session/session_1773130800323/respond HTTP/1.1" 200 -
+127.0.0.1 - - [10/Mar/2026 14:06:24] "POST /api/session/session_1773130800323/respond HTTP/1.1" 200 -
+127.0.0.1 - - [10/Mar/2026 14:06:26] "POST /api/session/session_1773130800323/respond HTTP/1.1" 200 -
+
+[PHOROPTER] HTTP Error 404: {"detail":"Device 'Test' not found. Available: ['lkst1782-1']"}
+✓ JCC action: handle
+[API] /api/session/session_1773130800323/respond: {"intent": "AUTO_FLIP"}
+[PHOROPTER] POST https://rajasthan-royals.preprod.lenskart.com/phoropter/Test/run-tests payload={"test_cases": [{"jcc": "handle"}]}
+[PHOROPTER] HTTP Error 404: {"detail":"Device 'Test' not found. Available: ['lkst1782-1']"}
+✓ JCC action: handle
+[API] /api/session/session_1773130800323/respond: {"intent": "Flip 2 was MUCH better (RAM Power - decrease cylinder by 0.50D)"}
+[PHOROPTER] POST https://rajasthan-royals.preprod.lenskart.com/phoropter/Test/run-tests payload={"test_cases": [{"jcc": "decrease"}]}
+[PHOROPTER] HTTP Error 404: {"detail":"Device 'Test' not found. Available: ['lkst1782-1']"}
+✓ JCC action: decrease
+[PHOROPTER] POST https://rajasthan-royals.preprod.lenskart.com/phoropter/Test/run-tests payload={"test_cases": [{"jcc": "decrease"}]}
+[PHOROPTER] HTTP Error 404: {"detail":"Device 'Test' not found. Available: ['lkst1782-1']"}
+✓ JCC action: decrease
+✓ Spherical equivalent compensation: SPH increased by +0.25D (now 0.00D)
+[PHOROPTER] POST https://rajasthan-royals.preprod.lenskart.com/phoropter/Test/run-tests payload={"test_cases": [{"jcc": "handle"}]}
+[PHOROPTER] HTTP Error 404: {"detail":"Device 'Test' not found. Available: ['lkst1782-1']"}
+✓ JCC action: handle
+[API] /api/session/session_1773130800323/respond: {"intent": "AUTO_FLIP"}
+[PHOROPTER] POST https://rajasthan-royals.preprod.lenskart.com/phoropter/Test/run-tests payload={"test_cases": [{"jcc": "handle"}]}
+[PHOROPTER] HTTP Error 404: {"detail":"Device 'Test' not found. Available: ['lkst1782-1']"}
+✓ JCC action: handle
+[API] /api/session/session_1773130800323/respond: {"intent": "Both Same (no change needed)"}
+
+→ Transitioning to Phase G: Duochrome Right (Step 6.2)
+[PHOROPTER] POST https://rajasthan-royals.preprod.lenskart.com/phoropter/Test/run-tests payload={"test_cases": [{"chart": {"tab": "Chart1", "chart_items": ["chart_17"]}}]}
+[PHOROPTER] HTTP Error 404: {"detail":"Device 'Test' not found. Available: ['lkst1782-1']"}
+✓ Displaying: duochrome
+[API] /api/session/session_1773130800323/respond: {"intent": "Both Same"}
+
+→ Transitioning to Phase H: 20/20 Validation Right
+[PHOROPTER] POST https://rajasthan-royals.preprod.lenskart.com/phoropter/Test/run-tests payload={"test_cases": [{"chart": {"tab": "Chart1", "chart_items": ["chart_15", "20_1"]}}]}
+[PHOROPTER] HTTP Error 404: {"detail":"Device 'Test' not found. Available: ['lkst1782-1']"}
+✓ Displaying: snellen_20_20 size=20_1
+[PHOROPTER] POST https://rajasthan-royals.preprod.lenskart.com/phoropter/Test/run-tests payload={"test_cases": [{"case_id": 1, "prev_right_eye": {"sph": 0.0, "cyl": -1.0, "axis": 170.0}, "prev_left_eye": {"sph": 0.0, "cyl": 0.0, "axis": 180.0}, "right_eye": {"sph": 0.0, "cyl": -1.0, "axis": 170.0}, "left_eye": {"sph": 0.0, "cyl": 0.0, "axis": 180.0}}]}
+[PHOROPTER] HTTP Error 404: {"detail":"Device 'Test' not found. Available: ['lkst1782-1']"}
+✓ Power set with prev state: R(0.0/-1.0/170.0) L(0.0/0.0/180.0)
+  Previous state: R(0.0/-1.0/170.0) L(0.0/0.0/180.0)
+[PHOROPTER] POST https://rajasthan-royals.preprod.lenskart.com/phoropter/Test/run-tests payload={"test_cases": [{"jcc": "R"}]}
+[PHOROPTER] HTTP Error 404: {"detail":"Device 'Test' not found. Available: ['lkst1782-1']"}
+✓ JCC action: R
+[API] /api/session/session_1773130800323/respond: {"intent": "Yes"}
+
+→ Transitioning to Phase I: Left Eye Refraction (Step 6.3)
+[PHOROPTER] POST https://rajasthan-royals.preprod.lenskart.com/phoropter/Test/run-tests payload={"test_cases": [{"case_id": 1, "prev_right_eye": {"sph": 0.0, "cyl": -1.0, "axis": 170.0}, "prev_left_eye": {"sph": 0.0, "cyl": 0.0, "axis": 180.0}, "right_eye": {"sph": 0.0, "cyl": -1.0, "axis": 170.0}, "left_eye": {"sph": 0.0, "cyl": 0.0, "axis": 180.0}}]}
+[PHOROPTER] HTTP Error 404: {"detail":"Device 'Test' not found. Available: ['lkst1782-1']"}
+✓ Power set with prev state: R(0.0/-1.0/170.0) L(0.0/0.0/180.0)
+  Previous state: R(0.0/-1.0/170.0) L(0.0/0.0/180.0)
+[PHOROPTER] POST https://rajasthan-royals.preprod.lenskart.com/phoropter/Test/run-tests payload={"test_cases": [{"jcc": "L"}]}
+[PHOROPTER] HTTP Error 404: {"detail":"Device 'Test' not found. Available: ['lkst1782-1']"}
+✓ JCC action: L
+[API] /api/session/session_1773130800323/respond: {"intent": "Able to read"}
+[PHOROPTER] POST https://rajasthan-royals.preprod.lenskart.com/phoropter/Test/run-tests payload={"test_cases": [{"chart": {"tab": "Chart1", "chart_items": ["chart_11"]}}]}
+[PHOROPTER] HTTP Error 404: {"detail":"Device 'Test' not found. Available: ['lkst1782-1']"}
+✓ Displaying: snellen_chart_100_80
+[API] /api/session/session_1773130800323/respond: {"intent": "Able to read"}
+[PHOROPTER] POST https://rajasthan-royals.preprod.lenskart.com/phoropter/Test/run-tests payload={"test_cases": [{"chart": {"tab": "Chart1", "chart_items": ["chart_12"]}}]}
+[PHOROPTER] HTTP Error 404: {"detail":"Device 'Test' not found. Available: ['lkst1782-1']"}
+✓ Displaying: snellen_chart_70_60_50
+[API] /api/session/session_1773130800323/respond: {"intent": "Able to read"}
+[PHOROPTER] POST https://rajasthan-royals.preprod.lenskart.com/phoropter/Test/run-tests payload={"test_cases": [{"chart": {"tab": "Chart1", "chart_items": ["chart_13"]}}]}
+[PHOROPTER] HTTP Error 404: {"detail":"Device 'Test' not found. Available: ['lkst1782-1']"}
+✓ Displaying: snellen_chart_40_30_25
+[API] /api/session/session_1773130800323/respond: {"intent": "Able to read"}
+[PHOROPTER] POST https://rajasthan-royals.preprod.lenskart.com/phoropter/Test/run-tests payload={"test_cases": [{"chart": {"tab": "Chart1", "chart_items": ["chart_16"]}}]}
+[PHOROPTER] HTTP Error 404: {"detail":"Device 'Test' not found. Available: ['lkst1782-1']"}
+✓ Displaying: snellen_chart_25_20_15
+[API] /api/session/session_1773130800323/respond: {"intent": "Able to read"}
+[PHOROPTER] POST https://rajasthan-royals.preprod.lenskart.com/phoropter/Test/run-tests payload={"test_cases": [{"chart": {"tab": "Chart1", "chart_items": ["chart_15"]}}]}
+[PHOROPTER] HTTP Error 404: {"detail":"Device 'Test' not found. Available: ['lkst1782-1']"}
+✓ Displaying: snellen_chart_20_20_20
+[API] /api/session/session_1773130800323/respond: {"intent": "Able to read"}
+
+→ Transitioning to Phase J: JCC Axis Left (Step 6.4)
+[API] /api/session/session_1773130800323/respond: {"intent": "AUTO_FLIP"}
+[PHOROPTER] POST https://rajasthan-royals.preprod.lenskart.com/phoropter/Test/run-tests payload={"test_cases": [{"jcc": "handle"}]}
+[PHOROPTER] HTTP Error 404: {"detail":"Device 'Test' not found. Available: ['lkst1782-1']"}
+✓ JCC action: handle
+[API] /api/session/session_1773130800323/respond: {"intent": "Flip 2 was MUCH better (RAM Axis - decrease axis by 10°)"}
+[PHOROPTER] POST https://rajasthan-royals.preprod.lenskart.com/phoropter/Test/run-tests payload={"test_cases": [{"jcc": "decrease"}]}
+[PHOROPTER] HTTP Error 404: {"detail":"Device 'Test' not found. Available: ['lkst1782-1']"}
+✓ JCC action: decrease
+[PHOROPTER] POST https://rajasthan-royals.preprod.lenskart.com/phoropter/Test/run-tests payload={"test_cases": [{"jcc": "decrease"}]}
+[PHOROPTER] HTTP Error 404: {"detail":"Device 'Test' not found. Available: ['lkst1782-1']"}
+✓ JCC action: decrease
+[PHOROPTER] POST https://rajasthan-royals.preprod.lenskart.com/phoropter/Test/run-tests payload={"test_cases": [{"jcc": "handle"}]}
+[PHOROPTER] HTTP Error 404: {"detail":"Device 'Test' not found. Available: ['lkst1782-1']"}
+✓ JCC action: handle
+[API] /api/session/session_1773130800323/respond: {"intent": "AUTO_FLIP"}
+[PHOROPTER] POST https://rajasthan-royals.preprod.lenskart.com/phoropter/Test/run-tests payload={"test_cases": [{"jcc": "handle"}]}
+[PHOROPTER] HTTP Error 404: {"detail":"Device 'Test' not found. Available: ['lkst1782-1']"}
+✓ JCC action: handle
+[API] /api/session/session_1773130800323/respond: {"intent": "Both Same (no change needed)"}
+
+→ Transitioning to Phase K: JCC Power Left (Step 6.4)
+[PHOROPTER] POST https://rajasthan-royals.preprod.lenskart.com/phoropter/Test/run-tests payload={"test_cases": [{"jcc": "power_axis_switch"}]}
+[PHOROPTER] HTTP Error 404: {"detail":"Device 'Test' not found. Available: ['lkst1782-1']"}127.0.0.1 - - [10/Mar/2026 14:06:27] "POST /api/session/session_1773130800323/respond HTTP/1.1" 200 -
+127.0.0.1 - - [10/Mar/2026 14:06:29] "OPTIONS /api/session/session_1773130800323/respond HTTP/1.1" 200 -
+127.0.0.1 - - [10/Mar/2026 14:06:29] "POST /api/session/session_1773130800323/respond HTTP/1.1" 200 -
+127.0.0.1 - - [10/Mar/2026 14:06:30] "POST /api/session/session_1773130800323/respond HTTP/1.1" 200 -
+127.0.0.1 - - [10/Mar/2026 14:06:33] "POST /api/session/session_1773130800323/respond HTTP/1.1" 200 -
+127.0.0.1 - - [10/Mar/2026 14:06:34] "POST /api/session/session_1773130800323/respond HTTP/1.1" 200 -
+127.0.0.1 - - [10/Mar/2026 14:06:36] "OPTIONS /api/session/session_1773130800323/respond HTTP/1.1" 200 -
+127.0.0.1 - - [10/Mar/2026 14:06:37] "POST /api/session/session_1773130800323/respond HTTP/1.1" 200 -
+127.0.0.1 - - [10/Mar/2026 14:06:38] "POST /api/session/session_1773130800323/respond HTTP/1.1" 200 -
+127.0.0.1 - - [10/Mar/2026 14:06:41] "POST /api/session/session_1773130800323/respond HTTP/1.1" 200 -
+127.0.0.1 - - [10/Mar/2026 14:06:43] "OPTIONS /api/session/session_1773130800323/respond HTTP/1.1" 200 -
+127.0.0.1 - - [10/Mar/2026 14:06:44] "POST /api/session/session_1773130800323/respond HTTP/1.1" 200 -
+127.0.0.1 - - [10/Mar/2026 14:06:46] "POST /api/session/session_1773130800323/respond HTTP/1.1" 200 -
+127.0.0.1 - - [10/Mar/2026 14:06:46] "POST /api/session/session_1773130800323/respond HTTP/1.1" 200 -
+127.0.0.1 - - [10/Mar/2026 14:06:48] "OPTIONS /api/session/session_1773130800323/respond HTTP/1.1" 200 -
+127.0.0.1 - - [10/Mar/2026 14:06:50] "POST /api/session/session_1773130800323/respond HTTP/1.1" 200 -
+
+✓ JCC action: power_axis_switch
+[API] /api/session/session_1773130800323/respond: {"intent": "AUTO_FLIP"}
+[PHOROPTER] POST https://rajasthan-royals.preprod.lenskart.com/phoropter/Test/run-tests payload={"test_cases": [{"jcc": "handle"}]}
+[PHOROPTER] HTTP Error 404: {"detail":"Device 'Test' not found. Available: ['lkst1782-1']"}
+✓ JCC action: handle
+[API] /api/session/session_1773130800323/respond: {"intent": "Flip 1 was better (GAP Power - increase cylinder by 0.25D)"}
+⚠️  Cylinder is 0.0, cannot increase. Repeating flip cycle...
+[PHOROPTER] POST https://rajasthan-royals.preprod.lenskart.com/phoropter/Test/run-tests payload={"test_cases": [{"jcc": "handle"}]}
+[PHOROPTER] HTTP Error 404: {"detail":"Device 'Test' not found. Available: ['lkst1782-1']"}
+✓ JCC action: handle
+[API] /api/session/session_1773130800323/respond: {"intent": "AUTO_FLIP"}
+[PHOROPTER] POST https://rajasthan-royals.preprod.lenskart.com/phoropter/Test/run-tests payload={"test_cases": [{"jcc": "handle"}]}
+[PHOROPTER] HTTP Error 404: {"detail":"Device 'Test' not found. Available: ['lkst1782-1']"}
+✓ JCC action: handle
+[API] /api/session/session_1773130800323/respond: {"intent": "Both Same (no change needed)"}
+
+→ Transitioning to Phase L: Duochrome Left (Step 6.4)
+[PHOROPTER] POST https://rajasthan-royals.preprod.lenskart.com/phoropter/Test/run-tests payload={"test_cases": [{"chart": {"tab": "Chart1", "chart_items": ["chart_17"]}}]}
+[PHOROPTER] HTTP Error 404: {"detail":"Device 'Test' not found. Available: ['lkst1782-1']"}
+✓ Displaying: duochrome
+[API] /api/session/session_1773130800323/respond: {"intent": "Red"}
+[PHOROPTER] POST https://rajasthan-royals.preprod.lenskart.com/phoropter/Test/run-tests payload={"test_cases": [{"jcc": "decrease"}]}
+[PHOROPTER] HTTP Error 404: {"detail":"Device 'Test' not found. Available: ['lkst1782-1']"}
+✓ JCC action: decrease
+[API] /api/session/session_1773130800323/respond: {"intent": "Red"}
+[PHOROPTER] POST https://rajasthan-royals.preprod.lenskart.com/phoropter/Test/run-tests payload={"test_cases": [{"jcc": "decrease"}]}
+[PHOROPTER] HTTP Error 404: {"detail":"Device 'Test' not found. Available: ['lkst1782-1']"}
+✓ JCC action: decrease
+[API] /api/session/session_1773130800323/respond: {"intent": "Both Same"}
+
+→ Transitioning to Phase M: 20/20 Validation Left
+[PHOROPTER] POST https://rajasthan-royals.preprod.lenskart.com/phoropter/Test/run-tests payload={"test_cases": [{"chart": {"tab": "Chart1", "chart_items": ["chart_15", "20_1"]}}]}
+[PHOROPTER] HTTP Error 404: {"detail":"Device 'Test' not found. Available: ['lkst1782-1']"}
+✓ Displaying: snellen_20_20 size=20_1
+[PHOROPTER] POST https://rajasthan-royals.preprod.lenskart.com/phoropter/Test/run-tests payload={"test_cases": [{"case_id": 1, "prev_right_eye": {"sph": 0.0, "cyl": -1.0, "axis": 170.0}, "prev_left_eye": {"sph": -0.5, "cyl": 0.0, "axis": 170.0}, "right_eye": {"sph": 0.0, "cyl": -1.0, "axis": 170.0}, "left_eye": {"sph": -0.5, "cyl": 0.0, "axis": 170.0}}]}
+[PHOROPTER] HTTP Error 404: {"detail":"Device 'Test' not found. Available: ['lkst1782-1']"}
+✓ Power set with prev state: R(0.0/-1.0/170.0) L(-0.5/0.0/170.0)
+  Previous state: R(0.0/-1.0/170.0) L(-0.5/0.0/170.0)
+[PHOROPTER] POST https://rajasthan-royals.preprod.lenskart.com/phoropter/Test/run-tests payload={"test_cases": [{"jcc": "L"}]}
+[PHOROPTER] HTTP Error 404: {"detail":"Device 'Test' not found. Available: ['lkst1782-1']"}
+✓ JCC action: L
+[API] /api/session/session_1773130800323/respond: {"intent": "Yes"}
+
+→ Transitioning to Phase N: 6/6 Validation (Distance)
+[PHOROPTER] POST https://rajasthan-royals.preprod.lenskart.com/phoropter/Test/run-tests payload={"test_cases": [{"chart": {"tab": "Chart1", "chart_items": ["chart_15", "20_1"]}}]}
+[PHOROPTER] HTTP Error 404: {"detail":"Device 'Test' not found. Available: ['lkst1782-1']"}
+✓ Displaying: snellen_20_20 size=20_1
+[PHOROPTER] POST https://rajasthan-royals.preprod.lenskart.com/phoropter/Test/run-tests payload={"test_cases": [{"case_id": 1, "prev_right_eye": {"sph": 0.0, "cyl": -1.0, "axis": 170.0}, "prev_left_eye": {"sph": -0.5, "cyl": 0.0, "axis": 170.0}, "right_eye": {"sph": 0.0, "cyl": -1.0, "axis": 170.0}, "left_eye": {"sph": -0.5, "cyl": 0.0, "axis": 170.0}}]}
+[PHOROPTER] HTTP Error 404: {"detail":"Device 'Test' not found. Available: ['lkst1782-1']"}
+✓ Power set with prev state: R(0.0/-1.0/170.0) L(-0.5/0.0/170.0)
+  Previous state: R(0.0/-1.0/170.0) L(-0.5/0.0/170.0)
+[PHOROPTER] POST https://rajasthan-royals.preprod.lenskart.com/phoropter/Test/run-tests payload={"test_cases": [{"jcc": "BINO"}]}
+[PHOROPTER] HTTP Error 404: {"detail":"Device 'Test' not found. Available: ['lkst1782-1']"}
+✓ JCC action: BINO
+[API] /api/session/session_1773130800323/respond: {"intent": "Yes"}
+
+→ Transitioning to Phase O: Binocular Balance (Step 6.5)
+[PHOROPTER] POST https://rajasthan-royals.preprod.lenskart.com/phoropter/Test/run-tests payload={"test_cases": [{"chart": {"tab": "Chart1", "chart_items": ["chart_20"]}}]}
+[PHOROPTER] HTTP Error 404: {"detail":"Device 'Test' not found. Available: ['lkst1782-1']"}
+✓ Displaying: bino_chart
+[PHOROPTER] POST https://rajasthan-royals.preprod.lenskart.com/phoropter/Test/run-tests payload={"test_cases": [{"case_id": 1, "prev_right_eye": {"sph": 0.0, "cyl": -1.0, "axis": 170.0}, "prev_left_eye": {"sph": -0.5, "cyl": 0.0, "axis": 170.0}, "right_eye": {"sph": 0.0, "cyl": -1.0, "axis": 170.0}, "left_eye": {"sph": -0.5, "cyl": 0.0, "axis": 170.0}}]}
+[PHOROPTER] HTTP Error 404: {"detail":"Device 'Test' not found. Available: ['lkst1782-1']"}
+✓ Power set with prev state: R(0.0/-1.0/170.0) L(-0.5/0.0/170.0)
+  Previous state: R(0.0/-1.0/170.0) L(-0.5/0.0/170.0)
+[PHOROPTER] POST https://rajasthan-royals.preprod.lenskart.com/phoropter/Test/run-tests payload={"test_cases": [{"jcc": "BINO"}]}
+[PHOROPTER] HTTP Error 404: {"detail":"Device 'Test' not found. Available: ['lkst1782-1']"}
+✓ JCC action: BINO
+[API] /api/session/session_1773130800323/respond: {"intent": "Top is blurry [Right Eye]"}
+[PHOROPTER] POST https://rajasthan-royals.preprod.lenskart.com/phoropter/Test/run-tests payload={"test_cases": [{"case_id": 1, "prev_right_eye": {"sph": 0.0, "cyl": -1.0, "axis": 170.0}, "prev_left_eye": {"sph": -0.5, "cyl": 0.0, "axis": 170.0}, "right_eye": {"sph": 0.0, "cyl": -1.0, "axis": 170.0}, "left_eye": {"sph": -0.25, "cyl": 0.0, "axis": 170.0}}]}
+[PHOROPTER] HTTP Error 404: {"detail":"Device 'Test' not found. Available: ['lkst1782-1']"}
+✓ Power set with prev state: R(0.0/-1.0/170.0) L(-0.25/0.0/170.0)
+  Previous state: R(0.0/-1.0/170.0) L(-0.5/0.0/170.0)
+[API] /api/session/session_1773130800323/respond: {"intent": "Both are same"}
+
+→ Transitioning to Phase P: Near Vision - Right Eye ADD
+[PHOROPTER] POST https://rajasthan-royals.preprod.lenskart.com/phoropter/Test/run-tests payload={"test_cases": [{"chart": {"tab": "Chart5", "chart_items": ["chart_5"]}}]}
+[PHOROPTER] HTTP Error 404: {"detail":"Device 'Test' not found. Available: ['lkst1782-1']"}
+✓ Displaying: Near chart (Chart 5)
+[PHOROPTER] POST https://rajasthan-royals.preprod.lenskart.com/phoropter/Test/run-tests payload={"test_cases": [{"case_id": 1, "prev_right_eye": {"sph": 0.0, "cyl": -1.0, "axis": 170.0}, "prev_left_eye": {"sph": -0.25, "cyl": 0.0, "axis": 170.0}, "right_eye": {"sph": 0.0, "cyl": -1.0, "axis": 170.0, "add": 0.0}, "left_eye": {"sph": -0.25, "cyl": 0.0, "axis": 170.0, "add": 0.0}}]}
+[PHOROPTER] HTTP Error 404: {"detail":"Device 'Test' not found. Available: ['lkst1782-1']"}
+✓ Power set with prev state: R(0.0/-1.0/170.0) L(-0.25/0.0/170.0)
+  Previous state: R(0.0/-1.0/170.0) L(-0.25/0.0/170.0)
+[PHOROPTER] POST https://rajasthan-royals.preprod.lenskart.com/phoropter/Test/run-tests payload={"test_cases": [{"jcc": "R"}]}
+[PHOROPTER] HTTP Error 404: {"detail":"Device 'Test' not found. Available: ['lkst1782-1']"}
+✓ JCC action: R
+[API] /api/session/session_1773130800323/respond: {"intent": "Comfortable"}
+
+→ Transitioning to Phase Q: Near Vision - Left Eye ADD
+[PHOROPTER] POST https://rajasthan-royals.preprod.lenskart.com/phoropter/Test/run-tests payload={"test_cases": [{"chart": {"tab": "Chart5", "chart_items": ["chart_5"]}}]}
+[PHOROPTER] HTTP Error 404: {"detail":"Device 'Test' not found. Available: ['lkst1782-1']"}127.0.0.1 - - [10/Mar/2026 14:06:52] "POST /api/session/session_1773130800323/respond HTTP/1.1" 200 -
+127.0.0.1 - - [10/Mar/2026 14:06:53] "POST /api/session/session_1773130800323/respond HTTP/1.1" 200 -
+127.0.0.1 - - [10/Mar/2026 14:06:54] "OPTIONS /api/session/session_1773130800323/respond HTTP/1.1" 200 -
+127.0.0.1 - - [10/Mar/2026 14:06:54] "POST /api/session/session_1773130800323/respond HTTP/1.1" 200 -
+127.0.0.1 - - [10/Mar/2026 14:06:55] "POST /api/session/session_1773130800323/respond HTTP/1.1" 200 -
+127.0.0.1 - - [10/Mar/2026 14:06:55] "OPTIONS /api/session/session_1773130800323/end HTTP/1.1" 200 -
+127.0.0.1 - - [10/Mar/2026 14:06:55] "POST /api/session/session_1773130800323/end HTTP/1.1" 200 -
+127.0.0.1 - - [10/Mar/2026 14:07:06] "OPTIONS /api/session/session_1773130800323/end HTTP/1.1" 200 -
+127.0.0.1 - - [10/Mar/2026 14:07:06] "POST /api/session/session_1773130800323/end HTTP/1.1" 200 -
