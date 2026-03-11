@@ -261,11 +261,19 @@ def start_session():
     # Start distance vision phase
     state = session.start_distance_vision()
     
-    return jsonify({
+    response_data = {
         "session_id": session_id,
         "status": "started",
         **state
-    })
+    }
+    
+    if session.dv:
+        response_data["derived_variables"] = {
+            k: v for k, v in session.dv.__dict__.items() 
+            if k.startswith('dv_')
+        }
+        
+    return jsonify(response_data)
 
 
 @app.route('/api/session/<session_id>/respond', methods=['POST'])
@@ -301,12 +309,20 @@ def get_status(session_id):
     session = sessions[session_id]
     state = session._build_response()
     
-    return jsonify({
+    response_data = {
         "session_id": session_id,
         "status": "active",
         "total_rows": len(session.session_history),
         **state
-    })
+    }
+    
+    if session.dv:
+        response_data["derived_variables"] = {
+            k: v for k, v in session.dv.__dict__.items() 
+            if k.startswith('dv_')
+        }
+        
+    return jsonify(response_data)
 
 
 @app.route('/api/session/<session_id>/jump', methods=['POST'])

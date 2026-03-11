@@ -2016,6 +2016,172 @@
         </div>
     </div>
 
+    <!-- Patient Input Master Details Modal -->
+    <div class="modal-backdrop" id="patientInfoModal">
+        <div class="modal" style="width: 660px; max-height: 90vh; overflow-y: auto;">
+            <div class="modal-header">
+                <h3>🧑‍⚕️ Patient Details</h3>
+                <p>Clinical information to guide the eye test</p>
+            </div>
+            <div class="modal-body">
+                <!-- Row 1: Occupation + Driving -->
+                <div class="modal-section">
+                    <div class="modal-section-label">Lifestyle</div>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px;">
+                        <div class="modal-input-group">
+                            <label class="modal-input-label">Occupation</label>
+                            <select id="piOccupation" style="width:100%; padding:10px 12px; border:2px solid #e0e0e0; border-radius:8px; font-size:15px; background:#fafafa;">
+                                <option value="Other">Other</option>
+                                <option value="Driver">Driver / Pilot</option>
+                                <option value="Office">Office / Screen work</option>
+                                <option value="Student">Student</option>
+                                <option value="Outdoor">Outdoor / Field</option>
+                            </select>
+                        </div>
+                        <div class="modal-input-group">
+                            <label class="modal-input-label">Driving (hrs/day)</label>
+                            <input id="piDrivingHours" type="number" step="0.5" min="0" max="16" placeholder="0" style="width:100%; padding:10px 12px; border:2px solid #e0e0e0; border-radius:8px; font-size:15px; background:#fafafa;">
+                        </div>
+                        <div class="modal-input-group">
+                            <label class="modal-input-label">Screen time (hrs/day)</label>
+                            <input id="piScreenHours" type="number" step="0.5" min="0" max="24" placeholder="4" style="width:100%; padding:10px 12px; border:2px solid #e0e0e0; border-radius:8px; font-size:15px; background:#fafafa;">
+                        </div>
+                    </div>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; margin-top: 12px;">
+                        <div class="modal-input-group">
+                            <label class="modal-input-label">Near work (hrs/day)</label>
+                            <input id="piNearWorkHours" type="number" step="0.5" min="0" max="16" placeholder="2" style="width:100%; padding:10px 12px; border:2px solid #e0e0e0; border-radius:8px; font-size:15px; background:#fafafa;">
+                        </div>
+                        <div class="modal-input-group">
+                            <label class="modal-input-label">Near priority</label>
+                            <select id="piNearPriority" style="width:100%; padding:10px 12px; border:2px solid #e0e0e0; border-radius:8px; font-size:15px; background:#fafafa;">
+                                <option value="Medium" selected>Medium</option>
+                                <option value="High">High</option>
+                                <option value="Low">Low</option>
+                            </select>
+                        </div>
+                        <div class="modal-input-group">
+                            <label class="modal-input-label">Last eye test</label>
+                            <select id="piLastTestMonths" style="width:100%; padding:10px 12px; border:2px solid #e0e0e0; border-radius:8px; font-size:15px; background:#fafafa;">
+                                <option value="3">Less than 3 months</option>
+                                <option value="6">3–6 months</option>
+                                <option value="12" selected>6–12 months</option>
+                                <option value="18">1–2 years</option>
+                                <option value="30">More than 2 years</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Row 2: Symptoms (multi-select checkboxes) -->
+                <div class="modal-section">
+                    <div class="modal-section-label">Symptoms <span style="font-weight:400; font-size:0.85em; color:#888;">(select all that apply)</span></div>
+                    <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px;">
+                        <label style="display:flex; align-items:center; gap:8px; font-size:0.95em; cursor:pointer; padding:6px 10px; border:1.5px solid #e0e0e0; border-radius:8px; background:#fafafa;">
+                            <input type="checkbox" id="piSymGlare" value="Glare"> Glare
+                        </label>
+                        <label style="display:flex; align-items:center; gap:8px; font-size:0.95em; cursor:pointer; padding:6px 10px; border:1.5px solid #e0e0e0; border-radius:8px; background:#fafafa;">
+                            <input type="checkbox" id="piSymHalos" value="Halos"> Halos
+                        </label>
+                        <label style="display:flex; align-items:center; gap:8px; font-size:0.95em; cursor:pointer; padding:6px 10px; border:1.5px solid #e0e0e0; border-radius:8px; background:#fafafa;">
+                            <input type="checkbox" id="piSymNightDiff" value="Night difficulty"> Night difficulty
+                        </label>
+                        <label style="display:flex; align-items:center; gap:8px; font-size:0.95em; cursor:pointer; padding:6px 10px; border:1.5px solid #e0e0e0; border-radius:8px; background:#fafafa;">
+                            <input type="checkbox" id="piSymFluctVision" value="Fluctuating vision"> Fluctuating vision
+                        </label>
+                        <label style="display:flex; align-items:center; gap:8px; font-size:0.95em; cursor:pointer; padding:6px 10px; border:1.5px solid #e0e0e0; border-radius:8px; background:#fafafa;">
+                            <input type="checkbox" id="piSymDiplopia" value="Diplopia"> Diplopia
+                        </label>
+                        <label style="display:flex; align-items:center; gap:8px; font-size:0.95em; cursor:pointer; padding:6px 10px; border:1.5px solid #e0e0e0; border-radius:8px; background:#fafafa;">
+                            <input type="checkbox" id="piSymFlashes" value="New flashes/floaters"> Flashes / Floaters
+                        </label>
+                        <label style="display:flex; align-items:center; gap:8px; font-size:0.95em; cursor:pointer; padding:6px 10px; border:1.5px solid #e0e0e0; border-radius:8px; background:#fafafa;">
+                            <input type="checkbox" id="piSymSuddenLoss" value="Sudden vision loss"> Sudden vision loss
+                        </label>
+                        <label style="display:flex; align-items:center; gap:8px; font-size:0.95em; cursor:pointer; padding:6px 10px; border:1.5px solid #e0e0e0; border-radius:8px; background:#fafafa; grid-column: span 2;">
+                            <input type="checkbox" id="piSymNone" value="None"> None of the above
+                        </label>
+                    </div>
+                </div>
+
+                <!-- Row 3: Medical History -->
+                <div class="modal-section">
+                    <div class="modal-section-label">Medical History <span style="font-weight:400; font-size:0.85em; color:#888;">(select all that apply)</span></div>
+                    <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px;">
+                        <label style="display:flex; align-items:center; gap:8px; font-size:0.95em; cursor:pointer; padding:6px 10px; border:1.5px solid #e0e0e0; border-radius:8px; background:#fafafa;">
+                            <input type="checkbox" id="piMedDiabetes" value="Diabetes"> Diabetes
+                        </label>
+                        <label style="display:flex; align-items:center; gap:8px; font-size:0.95em; cursor:pointer; padding:6px 10px; border:1.5px solid #e0e0e0; border-radius:8px; background:#fafafa;">
+                            <input type="checkbox" id="piMedGlaucoma" value="Glaucoma"> Glaucoma
+                        </label>
+                        <label style="display:flex; align-items:center; gap:8px; font-size:0.95em; cursor:pointer; padding:6px 10px; border:1.5px solid #e0e0e0; border-radius:8px; background:#fafafa;">
+                            <input type="checkbox" id="piMedKeratoconus" value="Keratoconus"> Keratoconus
+                        </label>
+                        <label style="display:flex; align-items:center; gap:8px; font-size:0.95em; cursor:pointer; padding:6px 10px; border:1.5px solid #e0e0e0; border-radius:8px; background:#fafafa;">
+                            <input type="checkbox" id="piMedSurgery" value="Surgery"> Prior Eye Surgery
+                        </label>
+                        <label style="display:flex; align-items:center; gap:8px; font-size:0.95em; cursor:pointer; padding:6px 10px; border:1.5px solid #e0e0e0; border-radius:8px; background:#fafafa;">
+                            <input type="checkbox" id="piMedAmblyopia" value="Amblyopia"> Amblyopia / Lazy eye
+                        </label>
+                        <label style="display:flex; align-items:center; gap:8px; font-size:0.95em; cursor:pointer; padding:6px 10px; border:1.5px solid #e0e0e0; border-radius:8px; background:#fafafa;">
+                            <input type="checkbox" id="piMedInfection" value="Infection"> Eye Infection
+                        </label>
+                        <label style="display:flex; align-items:center; gap:8px; font-size:0.95em; cursor:pointer; padding:6px 10px; border:1.5px solid #e0e0e0; border-radius:8px; background:#fafafa; grid-column: span 3;">
+                            <input type="checkbox" id="piMedNone" value="None"> None of the above
+                        </label>
+                    </div>
+                </div>
+
+                <!-- Row 4: Satisfaction + flags -->
+                <div class="modal-section">
+                    <div class="modal-section-label">Current Prescription Feedback</div>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+                        <div class="modal-input-group">
+                            <label class="modal-input-label">Satisfaction with current Rx</label>
+                            <select id="piSatisfaction" style="width:100%; padding:10px 12px; border:2px solid #e0e0e0; border-radius:8px; font-size:15px; background:#fafafa;">
+                                <option value="Neutral" selected>Neutral</option>
+                                <option value="Yes">Satisfied</option>
+                                <option value="No">Not satisfied</option>
+                                <option value="Poor">Poor — significant issues</option>
+                            </select>
+                        </div>
+                        <div class="modal-input-group" style="display:flex; flex-direction:column; gap:10px; justify-content:center; margin-top:18px;">
+                            <label style="display:flex; align-items:center; gap:10px; cursor:pointer; font-size:0.95em;">
+                                <input type="checkbox" id="piBlurComplaint"> Patient reports blur complaint
+                            </label>
+                            <label style="display:flex; align-items:center; gap:10px; cursor:pointer; font-size:0.95em;">
+                                <input type="checkbox" id="piComfortFirst"> Prioritise comfort over acuity
+                            </label>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="modal-actions">
+                    <button class="btn btn-secondary" onclick="skipPatientInfo()">Skip</button>
+                    <button class="btn btn-primary" onclick="savePatientInfo()">Confirm &amp; Continue</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Derived Variables Modal -->
+    <div class="modal-backdrop" id="derivedVarsModal">
+        <div class="modal" style="width: 500px;">
+            <div class="modal-header">
+                <h3>🧠 Intelligent Test Profile</h3>
+                <p>Derived parameters based on patient input</p>
+                <div class="progress-bar-container" style="width:100%; height:4px; background:#e0e0e0; margin-top:12px; border-radius:2px; overflow:hidden;">
+                    <div id="dvModalProgressBar" style="width:0%; height:100%; background:#667eea; transition: width linear;"></div>
+                </div>
+            </div>
+            <div class="modal-body" style="padding: 20px;">
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;" id="dvModalContent">
+                    <!-- Populated by JS -->
+                </div>
+            </div>
+        </div>
+    </div>
+
     <script src="app.js"></script>
 </body>
 

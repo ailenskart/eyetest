@@ -768,6 +768,80 @@ function saveOptometristName() {
     if (modal) modal.classList.remove('active');
 }
 
+// ── Patient Input Master Details ──────────────────────
+
+let patientInfoData = null; // null = not yet collected, object = collected/skipped
+let _patientInfoResolve = null; // promise resolver for modal flow
+
+function openPatientInfoModal() {
+    // Reset checkboxes
+    ['piSymGlare','piSymHalos','piSymNightDiff','piSymFluctVision','piSymDiplopia','piSymFlashes','piSymSuddenLoss','piSymNone',
+     'piMedDiabetes','piMedGlaucoma','piMedKeratoconus','piMedSurgery','piMedAmblyopia','piMedInfection','piMedNone',
+     'piBlurComplaint','piComfortFirst'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.checked = false;
+    });
+    // Reset selects/inputs to defaults
+    const occ = document.getElementById('piOccupation'); if (occ) occ.value = 'Other';
+    const np = document.getElementById('piNearPriority'); if (np) np.value = 'Medium';
+    const lt = document.getElementById('piLastTestMonths'); if (lt) lt.value = '12';
+    const sat = document.getElementById('piSatisfaction'); if (sat) sat.value = 'Neutral';
+    ['piDrivingHours','piScreenHours','piNearWorkHours'].forEach(id => {
+        const el = document.getElementById(id); if (el) el.value = '';
+    });
+    const modal = document.getElementById('patientInfoModal');
+    if (modal) modal.classList.add('active');
+}
+
+function closePatientInfoModal() {
+    const modal = document.getElementById('patientInfoModal');
+    if (modal) modal.classList.remove('active');
+}
+
+function _collectChecked(ids) {
+    return ids.map(id => {
+        const el = document.getElementById(id);
+        return (el && el.checked) ? el.value : null;
+    }).filter(v => v && v !== 'None');
+}
+
+function savePatientInfo() {
+    const symptoms = _collectChecked(['piSymGlare','piSymHalos','piSymNightDiff','piSymFluctVision','piSymDiplopia','piSymFlashes','piSymSuddenLoss']);
+    const medical = _collectChecked(['piMedDiabetes','piMedGlaucoma','piMedKeratoconus','piMedSurgery','piMedAmblyopia','piMedInfection']);
+
+    const ageParsed = parseInt(customerAge, 10) || 30;
+
+    patientInfoData = {
+        age: ageParsed,
+        occupation: (document.getElementById('piOccupation') || {}).value || 'Other',
+        driving_hours: parseFloat((document.getElementById('piDrivingHours') || {}).value) || 0,
+        screen_hours: parseFloat((document.getElementById('piScreenHours') || {}).value) || 4,
+        near_work_hours: parseFloat((document.getElementById('piNearWorkHours') || {}).value) || 2,
+        near_priority: (document.getElementById('piNearPriority') || {}).value || 'Medium',
+        last_test_months: parseInt((document.getElementById('piLastTestMonths') || {}).value, 10) || 12,
+        satisfaction: (document.getElementById('piSatisfaction') || {}).value || 'Neutral',
+        blur_complaint: (document.getElementById('piBlurComplaint') || {}).checked || false,
+        comfort_first: (document.getElementById('piComfortFirst') || {}).checked || false,
+        symptoms,
+        medical_history: medical,
+    };
+    closePatientInfoModal();
+    if (_patientInfoResolve) { _patientInfoResolve(true); _patientInfoResolve = null; }
+}
+
+function skipPatientInfo() {
+    patientInfoData = {}; // empty but set — backend will use defaults
+    closePatientInfoModal();
+    if (_patientInfoResolve) { _patientInfoResolve(false); _patientInfoResolve = null; }
+}
+
+function showPatientInfoModal() {
+    return new Promise(resolve => {
+        _patientInfoResolve = resolve;
+        openPatientInfoModal();
+    });
+}
+
 // ── Manual Refraction Adjustments ─────────────────────
 
 let manualControlsLocked = false;
@@ -2043,20 +2117,23 @@ async function startTest() {
             return;
         }
 
-        // 1. Instantly switch to test screen and show modals
         customerName = customerDetails.name;
         customerAge = customerDetails.age;
         customerGender = customerDetails.gender;
 
+        // Show Patient Input modal and wait for confirmation/skip
+        patientInfoData = null;
+        await showPatientInfoModal();
+
+        // 1. Instantly switch to test screen and show modals
         document.getElementById('welcomeScreen').style.display = 'none';
         document.getElementById('testScreen').style.display = 'block';
         updateCustomerStatusPanel();
 
-        // Start modal flow instantly (non-blocking for hardware/backend tasks)
+        // Start AR/Lenso modal flow instantly (non-blocking for hardware/backend tasks)
         runStartupPowerModalFlow();
 
         // 2. Perform hardware and backend initialization in background/parallel
-        // We still show loading for the background tasks, but the modals are already on top.
         showLoading(true);
 
         // Generate session ID
@@ -2064,13 +2141,29 @@ async function startTest() {
         sessionState.sessionId = sessionId;
         sessionState.currentChart = null;
 
+        // Build patient_info payload (if collected)
+        const sessionPayload = { session_id: sessionId, phoropter_id: CONFIG.phoropterId };
+        if (patientInfoData && Object.keys(patientInfoData).length > 0) {
+            sessionPayload.patient_info = patientInfoData;
+        }
+
+        // Add AR / Lenso if already stored
+        if (storedPower.ar) sessionPayload.ar = {
+            right_eye: storedPower.ar.right,
+            left_eye: storedPower.ar.left
+        };
+        if (storedPower.lenso) sessionPayload.lenso = {
+            right_eye: storedPower.lenso.right,
+            left_eye: storedPower.lenso.left
+        };
+
         // Perform bridge/phoropter reset and session start concurrently
         const [resetRes, sessionRes] = await Promise.allSettled([
             resetPhoropter(),
             fetch(`${CONFIG.backendUrl}/api/session/start`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ session_id: sessionId, phoropter_id: CONFIG.phoropterId })
+                body: JSON.stringify(sessionPayload)
             })
         ]);
 
@@ -2079,6 +2172,53 @@ async function startTest() {
         }
 
         const data = await sessionRes.value.json();
+
+        // Check if derived variables were returned and display them
+        if (data.derived_variables && Object.keys(data.derived_variables).length > 0) {
+            const dvContent = document.getElementById('dvModalContent');
+            if (dvContent) {
+                dvContent.innerHTML = '';
+                // Format derived variables
+                const formatDVLabel = (key) => key.replace('dv_', '').split('_').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+                
+                for (const [k, v] of Object.entries(data.derived_variables)) {
+                    // Skip technical/internal variables
+                    if (k === 'dv_phase_timeout_seconds' || k === 'dv_start_rx') continue;
+                    
+                    const div = document.createElement('div');
+                    div.style.background = '#f4f6fa';
+                    div.style.padding = '10px';
+                    div.style.borderRadius = '6px';
+                    div.innerHTML = `
+                        <div style="font-size: 0.85em; color: #666; margin-bottom: 4px;">${formatDVLabel(k)}</div>
+                        <div style="font-weight: 600; font-size: 1.05em; color: #2d3748;">${v}</div>
+                    `;
+                    dvContent.appendChild(div);
+                }
+
+                const dvModal = document.getElementById('derivedVarsModal');
+                const progressBar = document.getElementById('dvModalProgressBar');
+                
+                if (dvModal && progressBar) {
+                    dvModal.classList.add('active');
+                    
+                    // Animate progress bar over 5 seconds
+                    progressBar.style.transition = 'none';
+                    progressBar.style.width = '0%';
+                    
+                    // Force reflow
+                    void progressBar.offsetWidth;
+                    
+                    progressBar.style.transition = 'width 5s linear';
+                    progressBar.style.width = '100%';
+
+                    // Wait 5 seconds
+                    await new Promise(resolve => setTimeout(resolve, 5000));
+                    
+                    dvModal.classList.remove('active');
+                }
+            }
+        }
 
         // 3. Finalize UI with backend data
         updateSessionInfo(data);
